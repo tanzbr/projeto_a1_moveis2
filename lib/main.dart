@@ -53,17 +53,31 @@ class TelaNavegacao extends StatefulWidget {
 
 class _TelaNavegacaoState extends State<TelaNavegacao> {
   int _indiceSelecionado = 0;
+  final GlobalKey<HomeScreenState> _homeKey = GlobalKey();
+  final GlobalKey<FavoritosScreenState> _favoritosKey = GlobalKey();
 
-  final List<Widget> _telas = const [
-    HomeScreen(),
-    ExplorarScreen(),
-    FavoritosScreen(),
-  ];
+  late final List<Widget> _telas;
+
+  @override
+  void initState() {
+    super.initState();
+    _telas = [
+      HomeScreen(key: _homeKey),
+      const ExplorarScreen(),
+      FavoritosScreen(key: _favoritosKey),
+    ];
+  }
 
   void _trocarTela(int i) {
     setState(() {
       _indiceSelecionado = i;
     });
+    // recarrega favoritos ao entrar na aba
+    if (i == 0) {
+      _homeKey.currentState?.carregarFavoritos();
+    } else if (i == 2) {
+      _favoritosKey.currentState?.carregarFavoritos();
+    }
   }
 
   @override

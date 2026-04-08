@@ -1,20 +1,44 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../data/receitas_data.dart';
+import '../data/local_storage.dart';
 import '../models/receita.dart';
 import '../widgets/recipe_carousel.dart';
 import 'detalhes_screen.dart';
 import 'explorar_screen.dart';
 
-class HomeScreen extends StatelessWidget {
+class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
 
+  @override
+  State<HomeScreen> createState() => HomeScreenState();
+}
+
+class HomeScreenState extends State<HomeScreen> {
   static const _categorias = [
     {'label': 'Café da Manhã', 'icon': Icons.coffee},
     {'label': 'Almoço', 'icon': Icons.restaurant},
     {'label': 'Jantar', 'icon': Icons.nightlight_round},
     {'label': 'Lanches', 'icon': Icons.lunch_dining},
   ];
+
+  List<Receita> _ultimosFavoritos = [];
+
+  @override
+  void initState() {
+    super.initState();
+    carregarFavoritos();
+  }
+
+  Future<void> carregarFavoritos() async {
+    final ids = await FavoritosStorage.carregarFavoritos();
+    setState(() {
+      for (final receita in listaReceitas) {
+        receita.favorito = ids.contains(receita.id);
+      }
+      _ultimosFavoritos = listaReceitas.where((r) => r.favorito).toList();
+    });
+  }
 
   void _abrirExplorar(
     BuildContext context, {
@@ -30,11 +54,12 @@ class HomeScreen extends StatelessWidget {
     );
   }
 
-  void _abrirDetalhes(BuildContext context, Receita receita) {
-    Navigator.push(
+  Future<void> _abrirDetalhes(BuildContext context, Receita receita) async {
+    await Navigator.push(
       context,
       MaterialPageRoute(builder: (_) => DetalhesScreen(receita: receita)),
     );
+    carregarFavoritos();
   }
 
   @override
@@ -165,6 +190,100 @@ class HomeScreen extends StatelessWidget {
               receitas: receitasDestaque,
               onReceitaTap: (receita) => _abrirDetalhes(context, receita),
             ),
+
+            // Seção Últimos Favoritos
+            if (_ultimosFavoritos.isNotEmpty) ...[
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 24, 16, 8),
+                child: Row(
+                  children: [
+                    const Icon(Icons.favorite, size: 20, color: Color.fromARGB(255, 107, 91, 149)),
+                    const SizedBox(width: 8),
+                    Text(
+                      'Seus Favoritos',
+                      style: GoogleFonts.poppins(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: const Color.fromARGB(255, 45, 45, 45),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              ..._ultimosFavoritos.map((receita) => Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+                child: InkWell(
+                  onTap: () => _abrirDetalhes(context, receita),
+                  borderRadius: BorderRadius.circular(12),
+                  child: Container(
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(12),
+                      boxShadow: [
+                        BoxShadow(color: Colors.black.withValues(alpha: 0.08), blurRadius: 6, offset: const Offset(0, 2)),
+                      ],
+                    ),
+                    child: Row(
+                      children: [
+                        Container(
+                          width: 80,
+                          height: 80,
+                          decoration: BoxDecoration(
+                            color: Colors.grey[300],
+                            borderRadius: const BorderRadius.horizontal(left: Radius.circular(12)),
+                          ),
+                          child: const Center(
+                            child: Icon(Icons.restaurant, size: 30, color: Colors.grey),
+                          ),
+                        ),
+                        Expanded(
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  receita.nome,
+                                  style: GoogleFonts.poppins(
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w600,
+                                    color: const Color.fromARGB(255, 45, 45, 45),
+                                  ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                                const SizedBox(height: 4),
+                                Row(
+                                  children: [
+                                    const Icon(Icons.timer, size: 13, color: Color.fromARGB(255, 117, 117, 117)),
+                                    const SizedBox(width: 3),
+                                    Text(
+                                      '${receita.tempoMinutos} min',
+                                      style: GoogleFonts.poppins(fontSize: 12, color: const Color.fromARGB(255, 117, 117, 117)),
+                                    ),
+                                    const SizedBox(width: 12),
+                                    const Icon(Icons.local_fire_department, size: 13, color: Color.fromARGB(255, 155, 142, 193)),
+                                    const SizedBox(width: 3),
+                                    Text(
+                                      receita.dificuldade,
+                                      style: GoogleFonts.poppins(fontSize: 12, color: const Color.fromARGB(255, 155, 142, 193)),
+                                    ),
+                                  ],
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                        const Padding(
+                          padding: EdgeInsets.only(right: 12),
+                          child: Icon(Icons.chevron_right, color: Color.fromARGB(255, 155, 142, 193)),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              )),
+            ],
 
             const SizedBox(height: 24),
           ],

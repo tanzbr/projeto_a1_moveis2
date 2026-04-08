@@ -17,8 +17,9 @@ class Receita {
   final List<Ingrediente> ingredientes;
   final List<String> modoPreparo;
   final bool destaque;
+  bool favorito;
 
-  const Receita({
+  Receita({
     required this.id,
     required this.nome,
     required this.descricao,
@@ -30,5 +31,6 @@ class Receita {
     required this.ingredientes,
     required this.modoPreparo,
     this.destaque = false,
+    this.favorito = false,
   });
 }
