@@ -1,22 +1,21 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
-import '../data/receitas_data.dart';
 import '../data/database_helper.dart';
 import '../models/receita.dart';
-import '../widgets/recipe_carousel.dart';
+import '../widgets/carrossel_receita.dart';
 import '../widgets/card_receita_lista.dart';
 import 'detalhes_screen.dart';
-import 'explorar_screen.dart';
 import 'tela_cadastro_receita.dart';
 
 class HomeScreen extends StatefulWidget {
-  const HomeScreen({super.key});
+  final void Function({String? categoria}) onExplorar;
+
+  const HomeScreen({super.key, required this.onExplorar});
 
   @override
-  State<HomeScreen> createState() => HomeScreenState();
+  State<HomeScreen> createState() => _HomeScreenState();
 }
 
-class HomeScreenState extends State<HomeScreen> {
+class _HomeScreenState extends State<HomeScreen> {
   static const _categorias = [
     {'label': 'Café da Manhã', 'icon': Icons.coffee},
     {'label': 'Almoço', 'icon': Icons.restaurant},
@@ -24,37 +23,18 @@ class HomeScreenState extends State<HomeScreen> {
     {'label': 'Lanches', 'icon': Icons.lunch_dining},
   ];
 
-  List<Receita> _ultimosFavoritos = [];
+  List<Receita> _receitas = [];
 
   @override
   void initState() {
     super.initState();
-    carregarFavoritos();
+    _carregarDados();
   }
 
-  Future<void> carregarFavoritos() async {
-    final ids = await DatabaseHelper.instance.listarIdsFavoritos();
+  Future<void> _carregarDados() async {
+    final dados = await DatabaseHelper.listarReceitas();
     if (!mounted) return;
-    setState(() {
-      for (final receita in listaReceitas) {
-        receita.favorito = ids.contains(receita.id);
-      }
-      _ultimosFavoritos = listaReceitas.where((r) => r.favorito).toList();
-    });
-  }
-
-  void _abrirExplorar(
-    BuildContext context, {
-    String? categoria,
-    String? busca,
-  }) {
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (_) =>
-            ExplorarScreen(categoriaInicial: categoria, buscaInicial: busca),
-      ),
-    );
+    setState(() => _receitas = dados);
   }
 
   Future<void> _abrirDetalhes(BuildContext context, Receita receita) async {
@@ -62,19 +42,17 @@ class HomeScreenState extends State<HomeScreen> {
       context,
       MaterialPageRoute(builder: (_) => DetalhesScreen(receita: receita)),
     );
-    carregarFavoritos();
+    _carregarDados();
   }
 
   @override
   Widget build(BuildContext context) {
-    final receitasDestaque = listaReceitas.where((r) => r.destaque).toList();
+    final receitasDestaque = _receitas.where((r) => r.destaque).toList();
+    final favoritos = _receitas.where((r) => r.favorito).toList();
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(
-          'ReceitasRápidas',
-          style: GoogleFonts.poppins(fontWeight: FontWeight.bold),
-        ),
+        title: const Text('ReceitasRápidas'),
         actions: const [
           Padding(
             padding: EdgeInsets.only(right: 16),
@@ -91,9 +69,7 @@ class HomeScreenState extends State<HomeScreen> {
           );
           if (!mounted) return;
           if (novoId != null) {
-            listaReceitas = await DatabaseHelper.instance.listarReceitas();
-            if (!mounted) return;
-            setState(() {});
+            _carregarDados();
             messenger.showSnackBar(
               const SnackBar(content: Text('Receita cadastrada!')),
             );
@@ -110,26 +86,25 @@ class HomeScreenState extends State<HomeScreen> {
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
               child: InkWell(
-                onTap: () => _abrirExplorar(context),
+                onTap: () => widget.onExplorar(),
                 borderRadius: BorderRadius.circular(12),
                 child: Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 14,
-                  ),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
                   decoration: BoxDecoration(
                     color: const Color.fromARGB(255, 240, 235, 248),
                     borderRadius: BorderRadius.circular(12),
                   ),
-                  child: Row(
+                  child: const Row(
                     children: [
-                      const Icon(Icons.search, color: Color.fromARGB(255, 155, 142, 193)),
-                      const SizedBox(width: 10),
+                      Icon(Icons.search,
+                          color: Color.fromARGB(255, 155, 142, 193)),
+                      SizedBox(width: 10),
                       Text(
                         'Buscar receitas...',
-                        style: GoogleFonts.poppins(
+                        style: TextStyle(
                           fontSize: 14,
-                          color: const Color.fromARGB(255, 117, 117, 117),
+                          color: Color.fromARGB(255, 117, 117, 117),
                         ),
                       ),
                     ],
@@ -138,15 +113,15 @@ class HomeScreenState extends State<HomeScreen> {
               ),
             ),
 
-            // Seção Categorias
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+            // Categorias
+            const Padding(
+              padding: EdgeInsets.fromLTRB(16, 12, 16, 8),
               child: Text(
                 'Categorias',
-                style: GoogleFonts.poppins(
+                style: TextStyle(
                   fontSize: 18,
                   fontWeight: FontWeight.bold,
-                  color: const Color.fromARGB(255, 45, 45, 45),
+                  color: Color.fromARGB(255, 45, 45, 45),
                 ),
               ),
             ),
@@ -161,10 +136,8 @@ class HomeScreenState extends State<HomeScreen> {
                   return Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 4),
                     child: InkWell(
-                      onTap: () => _abrirExplorar(
-                        context,
-                        categoria: cat['label'] as String,
-                      ),
+                      onTap: () => widget.onExplorar(
+                          categoria: cat['label'] as String),
                       borderRadius: BorderRadius.circular(12),
                       child: Container(
                         width: 80,
@@ -177,14 +150,15 @@ class HomeScreenState extends State<HomeScreen> {
                           children: [
                             Icon(
                               cat['icon'] as IconData,
-                              color: const Color.fromARGB(255, 107, 91, 149),
+                              color:
+                                  const Color.fromARGB(255, 107, 91, 149),
                             ),
                             const SizedBox(height: 4),
                             Text(
                               (cat['label'] as String).split(' ').first,
-                              style: GoogleFonts.poppins(
+                              style: const TextStyle(
                                 fontSize: 10,
-                                color: const Color.fromARGB(255, 107, 91, 149),
+                                color: Color.fromARGB(255, 107, 91, 149),
                                 fontWeight: FontWeight.w600,
                               ),
                             ),
@@ -197,49 +171,52 @@ class HomeScreenState extends State<HomeScreen> {
               ),
             ),
 
-            // Seção Receitas em Destaque
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+            // Receitas em Destaque
+            const Padding(
+              padding: EdgeInsets.fromLTRB(16, 16, 16, 8),
               child: Text(
                 'Receitas em Destaque',
-                style: GoogleFonts.poppins(
+                style: TextStyle(
                   fontSize: 18,
                   fontWeight: FontWeight.bold,
-                  color: const Color.fromARGB(255, 45, 45, 45),
+                  color: Color.fromARGB(255, 45, 45, 45),
                 ),
               ),
             ),
-            RecipeCarousel(
+            CarrosselReceita(
               receitas: receitasDestaque,
               onReceitaTap: (receita) => _abrirDetalhes(context, receita),
             ),
 
-            // Seção Últimos Favoritos
-            if (_ultimosFavoritos.isNotEmpty) ...[
-              Padding(
-                padding: const EdgeInsets.fromLTRB(16, 24, 16, 8),
+            // Últimos Favoritos
+            if (favoritos.isNotEmpty) ...[
+              const Padding(
+                padding: EdgeInsets.fromLTRB(16, 24, 16, 8),
                 child: Row(
                   children: [
-                    const Icon(Icons.favorite, size: 20, color: Color.fromARGB(255, 107, 91, 149)),
-                    const SizedBox(width: 8),
+                    Icon(Icons.favorite,
+                        size: 20,
+                        color: Color.fromARGB(255, 107, 91, 149)),
+                    SizedBox(width: 8),
                     Text(
                       'Seus Favoritos',
-                      style: GoogleFonts.poppins(
+                      style: TextStyle(
                         fontSize: 18,
                         fontWeight: FontWeight.bold,
-                        color: const Color.fromARGB(255, 45, 45, 45),
+                        color: Color.fromARGB(255, 45, 45, 45),
                       ),
                     ),
                   ],
                 ),
               ),
-              ..._ultimosFavoritos.map((receita) => Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-                child: CardReceitaLista(
-                  receita: receita,
-                  onTap: () => _abrirDetalhes(context, receita),
-                ),
-              )),
+              ...favoritos.map((receita) => Padding(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 16, vertical: 6),
+                    child: CardReceitaLista(
+                      receita: receita,
+                      onTap: () => _abrirDetalhes(context, receita),
+                    ),
+                  )),
             ],
 
             const SizedBox(height: 24),

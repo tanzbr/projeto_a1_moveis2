@@ -2,9 +2,7 @@ import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import '../data/database_helper.dart';
-import '../data/receitas_data.dart' as dados;
 import '../models/receita.dart';
-import '../utils/image_utils.dart';
 
 class TelaCadastroReceita extends StatefulWidget {
   final Receita? receita;
@@ -26,6 +24,8 @@ class _TelaCadastroReceitaState extends State<TelaCadastroReceita> {
   String _categoria = 'Almoço';
   Uint8List? _imagemBytes;
   String? _imagemDataUri;
+  String? _imagemAsset;
+  bool _destaque = false;
   bool _salvando = false;
 
   bool get _editando => widget.receita != null;
@@ -39,15 +39,19 @@ class _TelaCadastroReceitaState extends State<TelaCadastroReceita> {
       _descCtrl.text = r.descricao;
       _tempoCtrl.text = r.tempoMinutos.toString();
       _porcoesCtrl.text = r.porcoes.toString();
-      _ingredientesCtrl.text = r.ingredientes
-          .map((i) => '${i.nome}|${i.quantidade}')
-          .join('\n');
+      _ingredientesCtrl.text =
+          r.ingredientes.map((i) => '${i.nome}|${i.quantidade}').join('\n');
       _preparoCtrl.text = r.modoPreparo.join('\n');
       _dificuldade = r.dificuldade;
       _categoria = r.categoria;
-      if (r.imagemUrl.isNotEmpty && isBase64Image(r.imagemUrl)) {
-        _imagemDataUri = r.imagemUrl;
-        _imagemBytes = base64ToBytes(r.imagemUrl);
+      _destaque = r.destaque;
+      if (r.imagemUrl.isNotEmpty) {
+        if (isBase64Image(r.imagemUrl)) {
+          _imagemDataUri = r.imagemUrl;
+          _imagemBytes = base64ToBytes(r.imagemUrl);
+        } else {
+          _imagemAsset = r.imagemUrl;
+        }
       }
     }
   }
@@ -75,10 +79,12 @@ class _TelaCadastroReceitaState extends State<TelaCadastroReceita> {
     setState(() {
       _imagemBytes = bytes;
       _imagemDataUri = bytesToDataUri(bytes);
+      _imagemAsset = null;
     });
   }
 
   Future<void> _salvar() async {
+    if (_salvando) return;
     final nome = _nomeCtrl.text.trim();
     final desc = _descCtrl.text.trim();
     final tempo = int.tryParse(_tempoCtrl.text.trim()) ?? 0;
@@ -96,13 +102,12 @@ class _TelaCadastroReceitaState extends State<TelaCadastroReceita> {
         .map((l) => l.trim())
         .where((l) => l.isNotEmpty)
         .map((l) {
-          final partes = l.split('|');
-          return Ingrediente(
-            nome: partes[0].trim(),
-            quantidade: partes.length > 1 ? partes[1].trim() : '',
-          );
-        })
-        .toList();
+      final partes = l.split('|');
+      return Ingrediente(
+        nome: partes[0].trim(),
+        quantidade: partes.length > 1 ? partes[1].trim() : '',
+      );
+    }).toList();
 
     final preparo = _preparoCtrl.text
         .split('\n')
@@ -112,7 +117,8 @@ class _TelaCadastroReceitaState extends State<TelaCadastroReceita> {
 
     if (ingredientes.isEmpty || preparo.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Informe ingredientes e modo de preparo.')),
+        const SnackBar(
+            content: Text('Informe ingredientes e modo de preparo.')),
       );
       return;
     }
@@ -122,25 +128,50 @@ class _TelaCadastroReceitaState extends State<TelaCadastroReceita> {
       id: _editando ? widget.receita!.id : 0,
       nome: nome,
       descricao: desc,
-      imagemUrl: _imagemDataUri ?? '',
+      imagemUrl: _imagemDataUri ?? _imagemAsset ?? '',
       tempoMinutos: tempo,
       porcoes: porcoes,
       dificuldade: _dificuldade,
       categoria: _categoria,
       ingredientes: ingredientes,
       modoPreparo: preparo,
-      destaque: _editando ? widget.receita!.destaque : false,
+      destaque: _destaque,
     );
+
     final int idResultado;
     if (_editando) {
-      await DatabaseHelper.instance.atualizarReceita(receita);
+      await DatabaseHelper.atualizarReceita(receita);
       idResultado = receita.id;
     } else {
-      idResultado = await DatabaseHelper.instance.inserirReceita(receita);
+      idResultado = await DatabaseHelper.inserirReceita(receita);
     }
-    dados.listaReceitas = await DatabaseHelper.instance.listarReceitas();
     if (!mounted) return;
     Navigator.pop(context, idResultado);
+  }
+
+  Future<void> _excluir() async {
+    final confirmar = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Excluir receita'),
+        content: Text('Deseja excluir "${widget.receita!.nome}"?\nEssa ação não pode ser desfeita.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancelar'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: FilledButton.styleFrom(backgroundColor: Colors.redAccent),
+            child: const Text('Excluir'),
+          ),
+        ],
+      ),
+    );
+    if (confirmar != true || !mounted) return;
+    await DatabaseHelper.excluirReceita(widget.receita!.id);
+    if (!mounted) return;
+    Navigator.pop(context, -1);
   }
 
   @override
@@ -149,9 +180,7 @@ class _TelaCadastroReceitaState extends State<TelaCadastroReceita> {
       appBar: AppBar(
         title: Text(_editando ? 'Editar Receita' : 'Nova Receita'),
       ),
-      body: AbsorbPointer(
-        absorbing: _salvando,
-        child: SingleChildScrollView(
+      body: SingleChildScrollView(
           padding: const EdgeInsets.all(16),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -168,9 +197,14 @@ class _TelaCadastroReceitaState extends State<TelaCadastroReceita> {
                             image: MemoryImage(_imagemBytes!),
                             fit: BoxFit.cover,
                           )
-                        : null,
+                        : (_imagemAsset != null
+                            ? DecorationImage(
+                                image: AssetImage(_imagemAsset!),
+                                fit: BoxFit.cover,
+                              )
+                            : null),
                   ),
-                  child: _imagemBytes == null
+                  child: (_imagemBytes == null && _imagemAsset == null)
                       ? const Center(
                           child: Column(
                             mainAxisSize: MainAxisSize.min,
@@ -187,20 +221,25 @@ class _TelaCadastroReceitaState extends State<TelaCadastroReceita> {
               const SizedBox(height: 16),
               TextField(
                 controller: _nomeCtrl,
-                decoration: const InputDecoration(labelText: 'Nome da receita'),
+                decoration:
+                    const InputDecoration(labelText: 'Nome da receita'),
               ),
+              const SizedBox(height: 12),
               TextField(
                 controller: _descCtrl,
-                decoration: const InputDecoration(labelText: 'Descrição'),
+                decoration:
+                    const InputDecoration(labelText: 'Descrição'),
                 maxLines: 2,
               ),
+              const SizedBox(height: 12),
               Row(
                 children: [
                   Expanded(
                     child: TextField(
                       controller: _tempoCtrl,
                       keyboardType: TextInputType.number,
-                      decoration: const InputDecoration(labelText: 'Tempo (min)'),
+                      decoration: const InputDecoration(
+                          labelText: 'Tempo (min)'),
                     ),
                   ),
                   const SizedBox(width: 12),
@@ -208,25 +247,37 @@ class _TelaCadastroReceitaState extends State<TelaCadastroReceita> {
                     child: TextField(
                       controller: _porcoesCtrl,
                       keyboardType: TextInputType.number,
-                      decoration: const InputDecoration(labelText: 'Porções'),
+                      decoration:
+                          const InputDecoration(labelText: 'Porções'),
                     ),
                   ),
                 ],
               ),
-              const SizedBox(height: 8),
+              const SizedBox(height: 12),
               DropdownButtonFormField<String>(
                 initialValue: _dificuldade,
-                decoration: const InputDecoration(labelText: 'Dificuldade'),
+                decoration:
+                    const InputDecoration(labelText: 'Dificuldade'),
                 items: const ['Fácil', 'Médio', 'Difícil']
-                    .map((v) => DropdownMenuItem(value: v, child: Text(v)))
+                    .map((v) =>
+                        DropdownMenuItem(value: v, child: Text(v)))
                     .toList(),
-                onChanged: (v) => setState(() => _dificuldade = v!),
+                onChanged: (v) =>
+                    setState(() => _dificuldade = v!),
               ),
+              const SizedBox(height: 12),
               DropdownButtonFormField<String>(
                 initialValue: _categoria,
-                decoration: const InputDecoration(labelText: 'Categoria'),
-                items: const ['Café da Manhã', 'Almoço', 'Jantar', 'Lanches']
-                    .map((v) => DropdownMenuItem(value: v, child: Text(v)))
+                decoration:
+                    const InputDecoration(labelText: 'Categoria'),
+                items: const [
+                  'Café da Manhã',
+                  'Almoço',
+                  'Jantar',
+                  'Lanches'
+                ]
+                    .map((v) =>
+                        DropdownMenuItem(value: v, child: Text(v)))
                     .toList(),
                 onChanged: (v) => setState(() => _categoria = v!),
               ),
@@ -235,7 +286,8 @@ class _TelaCadastroReceitaState extends State<TelaCadastroReceita> {
                 controller: _ingredientesCtrl,
                 maxLines: 5,
                 decoration: const InputDecoration(
-                  labelText: 'Ingredientes (um por linha: nome|quantidade)',
+                  labelText:
+                      'Ingredientes (um por linha: nome | quantidade)',
                   hintText: 'Farinha|200g\nOvo|2 unidades',
                 ),
               ),
@@ -247,6 +299,27 @@ class _TelaCadastroReceitaState extends State<TelaCadastroReceita> {
                   labelText: 'Modo de preparo (um passo por linha)',
                 ),
               ),
+              const SizedBox(height: 16),
+              Container(
+                decoration: BoxDecoration(
+                  color: const Color.fromARGB(255, 240, 235, 248),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: SwitchListTile(
+                  title: const Text('Receita em destaque'),
+                  subtitle: const Text(
+                    'Aparece no carrossel da tela inicial',
+                    style: TextStyle(fontSize: 12),
+                  ),
+                  secondary: Icon(
+                    _destaque ? Icons.star : Icons.star_border,
+                    color: const Color.fromARGB(255, 107, 91, 149),
+                  ),
+                  activeThumbColor: const Color.fromARGB(255, 107, 91, 149),
+                  value: _destaque,
+                  onChanged: (v) => setState(() => _destaque = v),
+                ),
+              ),
               const SizedBox(height: 20),
               FilledButton(
                 onPressed: _salvando ? null : _salvar,
@@ -255,16 +328,28 @@ class _TelaCadastroReceitaState extends State<TelaCadastroReceita> {
                         height: 18,
                         width: 18,
                         child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          color: Colors.white,
-                        ),
+                            strokeWidth: 2, color: Colors.white),
                       )
                     : const Text('Salvar receita'),
               ),
+              if (_editando) ...[
+                const SizedBox(height: 12),
+                OutlinedButton.icon(
+                  onPressed: _excluir,
+                  icon: const Icon(Icons.delete, color: Colors.redAccent),
+                  label: const Text(
+                    'Excluir receita',
+                    style: TextStyle(color: Colors.redAccent),
+                  ),
+                  style: OutlinedButton.styleFrom(
+                    side: const BorderSide(color: Colors.redAccent),
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                  ),
+                ),
+              ],
             ],
           ),
         ),
-      ),
     );
   }
 }

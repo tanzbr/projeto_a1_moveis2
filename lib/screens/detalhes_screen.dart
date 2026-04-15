@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
 import '../models/receita.dart';
 import '../data/database_helper.dart';
-import '../utils/image_utils.dart';
 import 'tela_cadastro_receita.dart';
 
 class DetalhesScreen extends StatefulWidget {
@@ -32,9 +30,9 @@ class _DetalhesScreenState extends State<DetalhesScreen> {
     });
 
     if (_favorito) {
-      await DatabaseHelper.instance.salvarFavorito(_receita.id);
+      await DatabaseHelper.salvarFavorito(_receita.id);
     } else {
-      await DatabaseHelper.instance.removerFavorito(_receita.id);
+      await DatabaseHelper.removerFavorito(_receita.id);
     }
   }
 
@@ -46,7 +44,11 @@ class _DetalhesScreenState extends State<DetalhesScreen> {
       ),
     );
     if (resultado == null || !mounted) return;
-    final atualizada = await DatabaseHelper.instance.buscarReceita(resultado);
+    if (resultado == -1) {
+      Navigator.pop(context);
+      return;
+    }
+    final atualizada = await DatabaseHelper.buscarReceita(resultado);
     if (atualizada == null || !mounted) return;
     atualizada.favorito = _favorito;
     setState(() => _receita = atualizada);
@@ -95,19 +97,18 @@ class _DetalhesScreenState extends State<DetalhesScreen> {
                 children: [
                   Text(
                     receita.nome,
-                    style: GoogleFonts.poppins(
+                    style: const TextStyle(
                       fontSize: 22,
                       fontWeight: FontWeight.bold,
-                      color: const Color.fromARGB(255, 45, 45, 45),
+                      color: Color.fromARGB(255, 45, 45, 45),
                     ),
                   ),
                   const SizedBox(height: 8),
                   Text(
                     receita.descricao,
-                    style: GoogleFonts.poppins(
-                      fontSize: 14,
-                      color: const Color.fromARGB(255, 117, 117, 117),
-                    ),
+                    style: const TextStyle(
+                        fontSize: 14,
+                        color: Color.fromARGB(255, 117, 117, 117)),
                   ),
                   const SizedBox(height: 16),
                   // Badges
@@ -115,94 +116,101 @@ class _DetalhesScreenState extends State<DetalhesScreen> {
                     spacing: 8,
                     runSpacing: 8,
                     children: [
-                      _badge(Icons.timer, '${receita.tempoMinutos} min', corPrincipal, corBadge),
-                      _badge(Icons.people, '${receita.porcoes} porções', corPrincipal, corBadge),
-                      _badge(Icons.local_fire_department, receita.dificuldade, corPrincipal, corBadge),
-                      _badge(Icons.category, receita.categoria, corPrincipal, corBadge),
+                      _badge(Icons.timer, '${receita.tempoMinutos} min',
+                          corPrincipal, corBadge),
+                      _badge(Icons.people, '${receita.porcoes} porções',
+                          corPrincipal, corBadge),
+                      _badge(Icons.local_fire_department,
+                          receita.dificuldade, corPrincipal, corBadge),
+                      _badge(Icons.category, receita.categoria,
+                          corPrincipal, corBadge),
                     ],
                   ),
                   const SizedBox(height: 24),
 
                   // Ingredientes
-                  Text(
+                  const Text(
                     'Ingredientes',
-                    style: GoogleFonts.poppins(
+                    style: TextStyle(
                       fontSize: 18,
                       fontWeight: FontWeight.bold,
-                      color: const Color.fromARGB(255, 45, 45, 45),
+                      color: Color.fromARGB(255, 45, 45, 45),
                     ),
                   ),
                   const SizedBox(height: 8),
                   ...receita.ingredientes.map((ingrediente) => Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 4),
-                    child: Row(
-                      children: [
-                        const Icon(Icons.circle, size: 6, color: corPrincipal),
-                        const SizedBox(width: 10),
-                        Expanded(
-                          child: Text(
-                            ingrediente.nome,
-                            style: GoogleFonts.poppins(fontSize: 14),
-                          ),
+                        padding: const EdgeInsets.symmetric(vertical: 4),
+                        child: Row(
+                          children: [
+                            const Icon(Icons.circle,
+                                size: 6, color: corPrincipal),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: Text(ingrediente.nome,
+                                  style: const TextStyle(fontSize: 14)),
+                            ),
+                            Text(
+                              ingrediente.quantidade,
+                              style: const TextStyle(
+                                  fontSize: 14,
+                                  color:
+                                      Color.fromARGB(255, 117, 117, 117)),
+                            ),
+                          ],
                         ),
-                        Text(
-                          ingrediente.quantidade,
-                          style: GoogleFonts.poppins(
-                            fontSize: 14,
-                            color: const Color.fromARGB(255, 117, 117, 117),
-                          ),
-                        ),
-                      ],
-                    ),
-                  )),
+                      )),
                   const SizedBox(height: 24),
 
                   // Modo de Preparo
-                  Text(
+                  const Text(
                     'Modo de Preparo',
-                    style: GoogleFonts.poppins(
+                    style: TextStyle(
                       fontSize: 18,
                       fontWeight: FontWeight.bold,
-                      color: const Color.fromARGB(255, 45, 45, 45),
+                      color: Color.fromARGB(255, 45, 45, 45),
                     ),
                   ),
                   const SizedBox(height: 8),
-                  ...receita.modoPreparo.asMap().entries.map((entry) => Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 6),
-                    child: Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Container(
-                          width: 28,
-                          height: 28,
-                          decoration: const BoxDecoration(
-                            color: corPrincipal,
-                            shape: BoxShape.circle,
-                          ),
-                          child: Center(
-                            child: Text(
-                              '${entry.key + 1}',
-                              style: GoogleFonts.poppins(
-                                fontSize: 13,
-                                fontWeight: FontWeight.bold,
-                                color: Colors.white,
+                  ...receita.modoPreparo.asMap().entries.map(
+                        (entry) => Padding(
+                          padding:
+                              const EdgeInsets.symmetric(vertical: 6),
+                          child: Row(
+                            crossAxisAlignment:
+                                CrossAxisAlignment.start,
+                            children: [
+                              Container(
+                                width: 28,
+                                height: 28,
+                                decoration: const BoxDecoration(
+                                  color: corPrincipal,
+                                  shape: BoxShape.circle,
+                                ),
+                                child: Center(
+                                  child: Text(
+                                    '${entry.key + 1}',
+                                    style: const TextStyle(
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.bold,
+                                      color: Colors.white,
+                                    ),
+                                  ),
+                                ),
                               ),
-                            ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Padding(
+                                  padding:
+                                      const EdgeInsets.only(top: 3),
+                                  child: Text(entry.value,
+                                      style: const TextStyle(
+                                          fontSize: 14)),
+                                ),
+                              ),
+                            ],
                           ),
                         ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Padding(
-                            padding: const EdgeInsets.only(top: 3),
-                            child: Text(
-                              entry.value,
-                              style: GoogleFonts.poppins(fontSize: 14),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  )),
+                      ),
                   const SizedBox(height: 24),
                 ],
               ),
@@ -214,22 +222,46 @@ class _DetalhesScreenState extends State<DetalhesScreen> {
   }
 
   Widget _buildImagem(String url) {
-    if (url.isEmpty) return Container(color: Colors.grey[300]);
+    if (url.isEmpty) {
+      return Container(
+        color: Colors.grey[200],
+        child: const Center(
+          child: Icon(Icons.restaurant, size: 60, color: Colors.grey),
+        ),
+      );
+    }
+    if (isAssetImage(url)) {
+      return Image.asset(url, fit: BoxFit.cover);
+    }
     if (isBase64Image(url)) {
       final bytes = base64ToBytes(url);
-      if (bytes == null) return Container(color: Colors.grey[300]);
+      if (bytes == null) {
+        return Container(
+          color: Colors.grey[200],
+          child: const Center(
+            child: Icon(Icons.restaurant, size: 60, color: Colors.grey),
+          ),
+        );
+      }
       return Image.memory(bytes, fit: BoxFit.cover);
     }
     return Image.network(
       url,
       fit: BoxFit.cover,
-      errorBuilder: (ctx, err, st) => Container(color: Colors.grey[300]),
+      errorBuilder: (ctx, err, st) => Container(
+        color: Colors.grey[200],
+        child: const Center(
+          child: Icon(Icons.restaurant, size: 60, color: Colors.grey),
+        ),
+      ),
     );
   }
 
-  Widget _badge(IconData icon, String text, Color corIcone, Color corFundo) {
+  Widget _badge(
+      IconData icon, String text, Color corIcone, Color corFundo) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      padding:
+          const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       decoration: BoxDecoration(
         color: corFundo,
         borderRadius: BorderRadius.circular(20),
@@ -241,11 +273,10 @@ class _DetalhesScreenState extends State<DetalhesScreen> {
           const SizedBox(width: 4),
           Text(
             text,
-            style: GoogleFonts.poppins(
-              fontSize: 12,
-              color: corIcone,
-              fontWeight: FontWeight.w500,
-            ),
+            style: TextStyle(
+                fontSize: 12,
+                color: corIcone,
+                fontWeight: FontWeight.w500),
           ),
         ],
       ),

@@ -1,15 +1,12 @@
 import '../models/receita.dart';
 
-// lista mutável preenchida a partir do SQLite no startup
-List<Receita> listaReceitas = [];
-
 // sementes usadas para popular o banco no primeiro uso
 final List<Receita> receitasSeed = [
   Receita(
     id: 1,
     nome: 'Macarrão ao Alho e Óleo',
     descricao: 'Rápido, fácil e delicioso para o dia a dia.',
-    imagemUrl: '',
+    imagemUrl: 'assets/images/macarrao-alho-e-oleo.jpg',
     tempoMinutos: 15,
     porcoes: 2,
     dificuldade: 'Fácil',
@@ -33,7 +30,7 @@ final List<Receita> receitasSeed = [
     id: 2,
     nome: 'Omelete de Queijo',
     descricao: 'Café da manhã proteico em menos de 10 minutos.',
-    imagemUrl: '',
+    imagemUrl: 'assets/images/omelete-de-queijo.jpg',
     tempoMinutos: 10,
     porcoes: 1,
     dificuldade: 'Fácil',
@@ -57,7 +54,7 @@ final List<Receita> receitasSeed = [
     id: 3,
     nome: 'Frango Grelhado com Limão',
     descricao: 'Proteína magra temperada com ervas e limão.',
-    imagemUrl: '',
+    imagemUrl: 'assets/images/frango-grelhado-com-limao.jpg',
     tempoMinutos: 20,
     porcoes: 2,
     dificuldade: 'Médio',
@@ -82,7 +79,7 @@ final List<Receita> receitasSeed = [
     id: 4,
     nome: 'Salada Caesar',
     descricao: 'Clássico da culinária americana, fresco e saboroso.',
-    imagemUrl: '',
+    imagemUrl: 'assets/images/salada-caesar.jpg',
     tempoMinutos: 10,
     porcoes: 2,
     dificuldade: 'Fácil',
@@ -105,7 +102,7 @@ final List<Receita> receitasSeed = [
     id: 5,
     nome: 'Ovos Mexidos',
     descricao: 'Cremoso e rápido, perfeito para o café da manhã.',
-    imagemUrl: '',
+    imagemUrl: 'assets/images/ovo-mexido.jpg',
     tempoMinutos: 8,
     porcoes: 1,
     dificuldade: 'Fácil',
@@ -129,7 +126,7 @@ final List<Receita> receitasSeed = [
     id: 6,
     nome: 'Vitamina de Banana',
     descricao: 'Energética e nutritiva, pronta em 5 minutos.',
-    imagemUrl: '',
+    imagemUrl: 'assets/images/vitamina-banana.jpg',
     tempoMinutos: 5,
     porcoes: 1,
     dificuldade: 'Fácil',
