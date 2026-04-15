@@ -1,12 +1,27 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../models/receita.dart';
+import '../utils/image_utils.dart';
 
 class RecipeCard extends StatelessWidget {
   final Receita receita;
   final void Function() onTap;
 
   const RecipeCard({super.key, required this.receita, required this.onTap});
+
+  Widget _buildImagem(String url) {
+    if (url.isEmpty) return Container(color: Colors.grey[300]);
+    if (isBase64Image(url)) {
+      final bytes = base64ToBytes(url);
+      if (bytes == null) return Container(color: Colors.grey[300]);
+      return Image.memory(bytes, fit: BoxFit.cover);
+    }
+    return Image.network(
+      url,
+      fit: BoxFit.cover,
+      errorBuilder: (ctx, err, st) => Container(color: Colors.grey[300]),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -25,15 +40,16 @@ class RecipeCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // imagem da receita (por enquanto só um placeholder)
-            Container(
-              height: 110,
-              decoration: BoxDecoration(
-                color: Colors.grey[300],
+            // imagem da receita (por enquanto só um placeholder) com Hero
+            Hero(
+              tag: 'receita-imagem-${receita.id}',
+              child: ClipRRect(
                 borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
-              ),
-              child: const Center(
-                child: Icon(Icons.restaurant, size: 40, color: Colors.grey),
+                child: SizedBox(
+                  height: 110,
+                  width: double.infinity,
+                  child: _buildImagem(receita.imagemUrl),
+                ),
               ),
             ),
             // informações da receita

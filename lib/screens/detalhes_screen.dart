@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../models/receita.dart';
-import '../data/local_storage.dart';
+import '../data/database_helper.dart';
+import '../utils/image_utils.dart';
+import 'tela_cadastro_receita.dart';
 
 class DetalhesScreen extends StatefulWidget {
   final Receita receita;
@@ -14,31 +16,45 @@ class DetalhesScreen extends StatefulWidget {
 
 class _DetalhesScreenState extends State<DetalhesScreen> {
   late bool _favorito;
+  late Receita _receita;
 
   @override
   void initState() {
     super.initState();
-    _favorito = widget.receita.favorito;
+    _receita = widget.receita;
+    _favorito = _receita.favorito;
   }
 
   Future<void> _toggleFavorito() async {
     setState(() {
       _favorito = !_favorito;
-      widget.receita.favorito = _favorito;
+      _receita.favorito = _favorito;
     });
 
-    final ids = await FavoritosStorage.carregarFavoritos();
     if (_favorito) {
-      ids.add(widget.receita.id);
+      await DatabaseHelper.instance.salvarFavorito(_receita.id);
     } else {
-      ids.remove(widget.receita.id);
+      await DatabaseHelper.instance.removerFavorito(_receita.id);
     }
-    await FavoritosStorage.salvarFavoritos(ids);
+  }
+
+  Future<void> _editar() async {
+    final resultado = await Navigator.push<int>(
+      context,
+      MaterialPageRoute(
+        builder: (_) => TelaCadastroReceita(receita: _receita),
+      ),
+    );
+    if (resultado == null || !mounted) return;
+    final atualizada = await DatabaseHelper.instance.buscarReceita(resultado);
+    if (atualizada == null || !mounted) return;
+    atualizada.favorito = _favorito;
+    setState(() => _receita = atualizada);
   }
 
   @override
   Widget build(BuildContext context) {
-    final receita = widget.receita;
+    final receita = _receita;
     const corPrincipal = Color.fromARGB(255, 107, 91, 149);
     const corBadge = Color.fromARGB(255, 213, 204, 230);
 
@@ -46,6 +62,10 @@ class _DetalhesScreenState extends State<DetalhesScreen> {
       appBar: AppBar(
         title: Text(receita.nome),
         actions: [
+          IconButton(
+            icon: const Icon(Icons.edit, color: Colors.white),
+            onPressed: _editar,
+          ),
           IconButton(
             icon: Icon(
               _favorito ? Icons.favorite : Icons.favorite_border,
@@ -59,13 +79,13 @@ class _DetalhesScreenState extends State<DetalhesScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Imagem placeholder
-            Container(
-              width: double.infinity,
-              height: 250,
-              color: Colors.grey[300],
-              child: const Center(
-                child: Icon(Icons.restaurant, size: 80, color: Colors.grey),
+            // Imagem da receita (Hero)
+            Hero(
+              tag: 'receita-imagem-${receita.id}',
+              child: SizedBox(
+                width: double.infinity,
+                height: 250,
+                child: _buildImagem(receita.imagemUrl),
               ),
             ),
             Padding(
@@ -190,6 +210,20 @@ class _DetalhesScreenState extends State<DetalhesScreen> {
           ],
         ),
       ),
+    );
+  }
+
+  Widget _buildImagem(String url) {
+    if (url.isEmpty) return Container(color: Colors.grey[300]);
+    if (isBase64Image(url)) {
+      final bytes = base64ToBytes(url);
+      if (bytes == null) return Container(color: Colors.grey[300]);
+      return Image.memory(bytes, fit: BoxFit.cover);
+    }
+    return Image.network(
+      url,
+      fit: BoxFit.cover,
+      errorBuilder: (ctx, err, st) => Container(color: Colors.grey[300]),
     );
   }
 

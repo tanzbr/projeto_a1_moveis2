@@ -1,6 +1,10 @@
 import '../models/receita.dart';
 
-final List<Receita> listaReceitas = [
+// lista mutável preenchida a partir do SQLite no startup
+List<Receita> listaReceitas = [];
+
+// sementes usadas para popular o banco no primeiro uso
+final List<Receita> receitasSeed = [
   Receita(
     id: 1,
     nome: 'Macarrão ao Alho e Óleo',

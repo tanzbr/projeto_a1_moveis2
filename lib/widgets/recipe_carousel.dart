@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../models/receita.dart';
+import '../utils/image_utils.dart';
 
 class RecipeCarousel extends StatefulWidget {
   final List<Receita> receitas;
@@ -23,6 +24,26 @@ class _RecipeCarouselState extends State<RecipeCarousel> {
   void dispose() {
     _controller.dispose();
     super.dispose();
+  }
+
+  Widget _imagemFundo(Receita receita) {
+    final bytes = isBase64Image(receita.imagemUrl)
+        ? base64ToBytes(receita.imagemUrl)
+        : null;
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.grey[300],
+        borderRadius: BorderRadius.circular(16),
+        image: bytes != null
+            ? DecorationImage(image: MemoryImage(bytes), fit: BoxFit.cover)
+            : null,
+      ),
+      child: bytes == null
+          ? const Center(
+              child: Icon(Icons.restaurant, size: 60, color: Colors.grey),
+            )
+          : null,
+    );
   }
 
   @override
@@ -52,20 +73,7 @@ class _RecipeCarouselState extends State<RecipeCarousel> {
               ),
               child: Stack(
                 children: [
-                  // placeholder até ter imagens de verdade
-                  Container(
-                    decoration: BoxDecoration(
-                      color: Colors.grey[300],
-                      borderRadius: BorderRadius.circular(16),
-                    ),
-                    child: const Center(
-                      child: Icon(
-                        Icons.restaurant,
-                        size: 60,
-                        color: Colors.grey,
-                      ),
-                    ),
-                  ),
+                  _imagemFundo(receita),
                   // Gradiente overlay com info
                   Container(
                     decoration: BoxDecoration(

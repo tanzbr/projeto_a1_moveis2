@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../data/receitas_data.dart';
-import '../data/local_storage.dart';
+import '../data/database_helper.dart';
 import '../models/receita.dart';
 import '../widgets/recipe_carousel.dart';
+import '../widgets/card_receita_lista.dart';
 import 'detalhes_screen.dart';
 import 'explorar_screen.dart';
+import 'tela_cadastro_receita.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -31,7 +33,8 @@ class HomeScreenState extends State<HomeScreen> {
   }
 
   Future<void> carregarFavoritos() async {
-    final ids = await FavoritosStorage.carregarFavoritos();
+    final ids = await DatabaseHelper.instance.listarIdsFavoritos();
+    if (!mounted) return;
     setState(() {
       for (final receita in listaReceitas) {
         receita.favorito = ids.contains(receita.id);
@@ -78,6 +81,26 @@ class HomeScreenState extends State<HomeScreen> {
             child: Icon(Icons.menu_book),
           ),
         ],
+      ),
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: () async {
+          final messenger = ScaffoldMessenger.of(context);
+          final novoId = await Navigator.push<int>(
+            context,
+            MaterialPageRoute(builder: (_) => const TelaCadastroReceita()),
+          );
+          if (!mounted) return;
+          if (novoId != null) {
+            listaReceitas = await DatabaseHelper.instance.listarReceitas();
+            if (!mounted) return;
+            setState(() {});
+            messenger.showSnackBar(
+              const SnackBar(content: Text('Receita cadastrada!')),
+            );
+          }
+        },
+        icon: const Icon(Icons.add),
+        label: const Text('Nova receita'),
       ),
       body: SingleChildScrollView(
         child: Column(
@@ -212,75 +235,9 @@ class HomeScreenState extends State<HomeScreen> {
               ),
               ..._ultimosFavoritos.map((receita) => Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-                child: InkWell(
+                child: CardReceitaLista(
+                  receita: receita,
                   onTap: () => _abrirDetalhes(context, receita),
-                  borderRadius: BorderRadius.circular(12),
-                  child: Container(
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(12),
-                      boxShadow: [
-                        BoxShadow(color: Colors.black.withValues(alpha: 0.08), blurRadius: 6, offset: const Offset(0, 2)),
-                      ],
-                    ),
-                    child: Row(
-                      children: [
-                        Container(
-                          width: 80,
-                          height: 80,
-                          decoration: BoxDecoration(
-                            color: Colors.grey[300],
-                            borderRadius: const BorderRadius.horizontal(left: Radius.circular(12)),
-                          ),
-                          child: const Center(
-                            child: Icon(Icons.restaurant, size: 30, color: Colors.grey),
-                          ),
-                        ),
-                        Expanded(
-                          child: Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  receita.nome,
-                                  style: GoogleFonts.poppins(
-                                    fontSize: 14,
-                                    fontWeight: FontWeight.w600,
-                                    color: const Color.fromARGB(255, 45, 45, 45),
-                                  ),
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                                const SizedBox(height: 4),
-                                Row(
-                                  children: [
-                                    const Icon(Icons.timer, size: 13, color: Color.fromARGB(255, 117, 117, 117)),
-                                    const SizedBox(width: 3),
-                                    Text(
-                                      '${receita.tempoMinutos} min',
-                                      style: GoogleFonts.poppins(fontSize: 12, color: const Color.fromARGB(255, 117, 117, 117)),
-                                    ),
-                                    const SizedBox(width: 12),
-                                    const Icon(Icons.local_fire_department, size: 13, color: Color.fromARGB(255, 155, 142, 193)),
-                                    const SizedBox(width: 3),
-                                    Text(
-                                      receita.dificuldade,
-                                      style: GoogleFonts.poppins(fontSize: 12, color: const Color.fromARGB(255, 155, 142, 193)),
-                                    ),
-                                  ],
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                        const Padding(
-                          padding: EdgeInsets.only(right: 12),
-                          child: Icon(Icons.chevron_right, color: Color.fromARGB(255, 155, 142, 193)),
-                        ),
-                      ],
-                    ),
-                  ),
                 ),
               )),
             ],

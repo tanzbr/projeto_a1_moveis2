@@ -16,47 +16,42 @@ class ExplorarScreen extends StatefulWidget {
   });
 
   @override
-  State<ExplorarScreen> createState() => _ExplorarScreenState();
+  State<ExplorarScreen> createState() => ExplorarScreenState();
 }
 
-class _ExplorarScreenState extends State<ExplorarScreen>
-    with SingleTickerProviderStateMixin {
-  late TabController _tabController;
-  late TextEditingController _buscaController;
+class ExplorarScreenState extends State<ExplorarScreen> {
+  final _buscaController = TextEditingController();
 
-  // categorias que aparecem nas abas
   final List<String> _categorias = ['Todos', 'Café da Manhã', 'Almoço', 'Jantar', 'Lanches'];
+  String _categoriaAtual = 'Todos';
   String _filtroTempo = 'Todos';
   String _filtroDificuldade = 'Todos';
 
   @override
   void initState() {
     super.initState();
-    // se vier de outra tela com categoria selecionada, abre direto na aba certa
-    int indiceInicial = _categorias.indexOf(widget.categoriaInicial ?? 'Todos');
-    if (indiceInicial == -1) indiceInicial = 0;
-    _tabController = TabController(
-      length: _categorias.length,
-      vsync: this,
-      initialIndex: indiceInicial,
-    );
-    _buscaController = TextEditingController(text: widget.buscaInicial ?? '');
+    _buscaController.text = widget.buscaInicial ?? '';
+    if (widget.categoriaInicial != null &&
+        _categorias.contains(widget.categoriaInicial)) {
+      _categoriaAtual = widget.categoriaInicial!;
+    }
   }
 
   @override
   void dispose() {
-    _tabController.dispose();
     _buscaController.dispose();
     super.dispose();
   }
 
-  // filtra a lista de acordo com os filtros ativos
+  void recarregar() {
+    if (mounted) setState(() {});
+  }
+
   List<Receita> get _receitasFiltradas {
     final busca = _buscaController.text.toLowerCase().trim();
-    final categoriaAtual = _categorias[_tabController.index];
 
     return listaReceitas.where((r) {
-      if (categoriaAtual != 'Todos' && r.categoria != categoriaAtual) return false;
+      if (_categoriaAtual != 'Todos' && r.categoria != _categoriaAtual) return false;
 
       // busca por nome ou ingrediente
       if (busca.isNotEmpty) {
@@ -82,18 +77,26 @@ class _ExplorarScreenState extends State<ExplorarScreen>
     return Scaffold(
       appBar: AppBar(
         title: Text('Explorar Receitas', style: GoogleFonts.poppins(fontWeight: FontWeight.bold)),
-        bottom: TabBar(
-          controller: _tabController,
-          onTap: (_) => setState(() {}),
-          isScrollable: true,
-          labelColor: const Color.fromARGB(255, 255, 255, 255),
-          unselectedLabelColor: const Color.fromARGB(255, 236, 236, 236),
-          indicatorColor: const Color.fromARGB(255, 255, 255, 255),
-          tabs: _categorias.map((c) => Tab(text: c)).toList(),
-        ),
       ),
       body: Column(
         children: [
+          SizedBox(
+            height: 48,
+            child: ListView.separated(
+              scrollDirection: Axis.horizontal,
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              itemCount: _categorias.length,
+              separatorBuilder: (_, _) => const SizedBox(width: 8),
+              itemBuilder: (_, i) {
+                final cat = _categorias[i];
+                return ChoiceChip(
+                  label: Text(cat, style: GoogleFonts.poppins(fontSize: 12)),
+                  selected: _categoriaAtual == cat,
+                  onSelected: (_) => setState(() => _categoriaAtual = cat),
+                );
+              },
+            ),
+          ),
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
             child: TextField(
