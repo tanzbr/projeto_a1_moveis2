@@ -1,12 +1,17 @@
 import 'package:flutter/material.dart';
 import '../models/receita.dart';
+import '../theme/cores.dart';
+import '../theme/espacos.dart';
+import 'imagem_receita.dart';
 
+// versão horizontal do card — usada na Home (favoritos) e na Favoritos
+// parâmetros opcionais permitem ajustar o conteúdo sem criar widgets novos
 class CardReceitaLista extends StatelessWidget {
   final Receita receita;
   final VoidCallback onTap;
-  final String? rodape;
-  final bool mostrarCategoria;
-  final Widget? acaoDireita;
+  final String? rodape; // texto extra opcional embaixo
+  final bool mostrarCategoria; // se true, mostra chip da categoria
+  final Widget? acaoDireita; // ícone customizado à direita (ex.: coração)
 
   const CardReceitaLista({
     super.key,
@@ -21,11 +26,11 @@ class CardReceitaLista extends StatelessWidget {
   Widget build(BuildContext context) {
     return InkWell(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(12),
+      borderRadius: BorderRadius.circular(Espacos.raioCard),
       child: Container(
         decoration: BoxDecoration(
           color: Colors.white,
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(Espacos.raioCard),
           boxShadow: [
             BoxShadow(
               color: Colors.black.withValues(alpha: 0.08),
@@ -50,7 +55,7 @@ class CardReceitaLista extends StatelessWidget {
                       style: const TextStyle(
                         fontSize: 14,
                         fontWeight: FontWeight.w600,
-                        color: Color.fromARGB(255, 45, 45, 45),
+                        color: Cores.textoEscuro,
                       ),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
@@ -63,18 +68,19 @@ class CardReceitaLista extends StatelessWidget {
                         rodape!,
                         style: const TextStyle(
                             fontSize: 11,
-                            color: Color.fromARGB(255, 160, 160, 160)),
+                            color: Colors.grey),
                       ),
                     ],
                   ],
                 ),
               ),
             ),
+            // se nenhum ícone for passado, mostra a setinha padrão
             Padding(
               padding: const EdgeInsets.only(right: 12),
               child: acaoDireita ??
                   const Icon(Icons.chevron_right,
-                      color: Color.fromARGB(255, 155, 142, 193)),
+                      color: Cores.primaria),
             ),
           ],
         ),
@@ -83,29 +89,19 @@ class CardReceitaLista extends StatelessWidget {
   }
 
   Widget _thumbnail() {
-    final url = receita.imagemUrl;
-    ImageProvider? provider;
-    if (isAssetImage(url)) {
-      provider = AssetImage(url);
-    } else if (isBase64Image(url)) {
-      final bytes = base64ToBytes(url);
-      if (bytes != null) provider = MemoryImage(bytes);
-    }
-    return Container(
-      width: 80,
-      height: 80,
-      decoration: BoxDecoration(
-        color: Colors.grey[300],
-        borderRadius:
-            const BorderRadius.horizontal(left: Radius.circular(12)),
-        image: provider != null
-            ? DecorationImage(image: provider, fit: BoxFit.cover)
-            : null,
+    return ClipRRect(
+      borderRadius: const BorderRadius.horizontal(
+        left: Radius.circular(Espacos.raioCard),
       ),
-      child: provider == null
-          ? const Center(
-              child: Icon(Icons.restaurant, size: 30, color: Colors.grey))
-          : null,
+      child: SizedBox(
+        width: 80,
+        height: 80,
+        child: ImagemReceita(
+          url: receita.imagemUrl,
+          raio: 0,
+          tamanhoIcone: 30,
+        ),
+      ),
     );
   }
 
@@ -113,38 +109,38 @@ class CardReceitaLista extends StatelessWidget {
     return Row(
       children: [
         const Icon(Icons.timer,
-            size: 13, color: Color.fromARGB(255, 117, 117, 117)),
+            size: 13, color: Cores.textoCinza),
         const SizedBox(width: 3),
         Text(
           '${receita.tempoMinutos} min',
           style: const TextStyle(
-              fontSize: 12, color: Color.fromARGB(255, 117, 117, 117)),
+              fontSize: 12, color: Cores.textoCinza),
         ),
         const SizedBox(width: 10),
         if (mostrarCategoria)
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
             decoration: BoxDecoration(
-              color: const Color.fromARGB(255, 213, 204, 230),
+              color: Cores.primariaClara,
               borderRadius: BorderRadius.circular(8),
             ),
             child: Text(
               receita.categoria,
               style: const TextStyle(
                 fontSize: 10,
-                color: Color.fromARGB(255, 107, 91, 149),
+                color: Cores.primariaEscura,
                 fontWeight: FontWeight.w500,
               ),
             ),
           )
         else ...[
           const Icon(Icons.local_fire_department,
-              size: 13, color: Color.fromARGB(255, 155, 142, 193)),
+              size: 13, color: Cores.primaria),
           const SizedBox(width: 3),
           Text(
             receita.dificuldade,
             style: const TextStyle(
-                fontSize: 12, color: Color.fromARGB(255, 155, 142, 193)),
+                fontSize: 12, color: Cores.primaria),
           ),
         ],
       ],

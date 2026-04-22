@@ -1,21 +1,26 @@
 import 'package:flutter/material.dart';
 import '../data/database_helper.dart';
+import '../data/favoritos_storage.dart';
 import '../models/receita.dart';
+import '../theme/cores.dart';
 import '../widgets/carrossel_receita.dart';
 import '../widgets/card_receita_lista.dart';
 import 'detalhes_screen.dart';
 import 'tela_cadastro_receita.dart';
 
 class HomeScreen extends StatefulWidget {
+  // callback usado p/ pedir à TelaNavegacao p/ abrir a aba Explorar
+  // (opcionalmente já filtrando por uma categoria escolhida aqui)
   final void Function({String? categoria}) onExplorar;
 
   const HomeScreen({super.key, required this.onExplorar});
 
   @override
-  State<HomeScreen> createState() => _HomeScreenState();
+  State<HomeScreen> createState() => HomeScreenState();
 }
 
-class _HomeScreenState extends State<HomeScreen> {
+class HomeScreenState extends State<HomeScreen> {
+  // categorias fixas exibidas no carrossel horizontal
   static const _categorias = [
     {'label': 'Café da Manhã', 'icon': Icons.coffee},
     {'label': 'Almoço', 'icon': Icons.restaurant},
@@ -28,25 +33,32 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   void initState() {
     super.initState();
-    _carregarDados();
+    _carregarDados(); // carga inicial vinda do banco
   }
+
+  // exposto à TelaNavegacao via GlobalKey p/ atualizar ao voltar p/ aba
+  Future<void> recarregar() => _carregarDados();
 
   Future<void> _carregarDados() async {
     final dados = await DatabaseHelper.listarReceitas();
+    if (!mounted) return; // evita setState se a tela já foi descartada
+    final comFavoritos = await FavoritosStorage.aplicarFavoritos(dados);
     if (!mounted) return;
-    setState(() => _receitas = dados);
+    setState(() => _receitas = comFavoritos);
   }
 
   Future<void> _abrirDetalhes(BuildContext context, Receita receita) async {
+    // await garante que recarregamos só depois que o usuário fechar a tela
     await Navigator.push(
       context,
       MaterialPageRoute(builder: (_) => DetalhesScreen(receita: receita)),
     );
-    _carregarDados();
+    _carregarDados(); // reflete favorito/edições ao voltar
   }
 
   @override
   Widget build(BuildContext context) {
+    // filtros leves em memória — não precisa de query no banco p/ isso
     final receitasDestaque = _receitas.where((r) => r.destaque).toList();
     final favoritos = _receitas.where((r) => r.favorito).toList();
 
@@ -60,8 +72,10 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
         ],
       ),
+      // FAB abre o cadastro; espera o id devolvido p/ confirmar a inserção
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () async {
+          // capturado antes do await p/ não usar context após gap async
           final messenger = ScaffoldMessenger.of(context);
           final novoId = await Navigator.push<int>(
             context,
@@ -82,7 +96,7 @@ class _HomeScreenState extends State<HomeScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Campo de busca
+            // "Falso" campo de busca: só leva pra aba Explorar (busca real lá)
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
               child: InkWell(
@@ -92,19 +106,19 @@ class _HomeScreenState extends State<HomeScreen> {
                   padding:
                       const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
                   decoration: BoxDecoration(
-                    color: const Color.fromARGB(255, 240, 235, 248),
+                    color: Cores.fundoSuave,
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: const Row(
                     children: [
                       Icon(Icons.search,
-                          color: Color.fromARGB(255, 155, 142, 193)),
+                          color: Cores.primaria),
                       SizedBox(width: 10),
                       Text(
                         'Buscar receitas...',
                         style: TextStyle(
                           fontSize: 14,
-                          color: Color.fromARGB(255, 117, 117, 117),
+                          color: Cores.textoCinza,
                         ),
                       ),
                     ],
@@ -121,7 +135,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 style: TextStyle(
                   fontSize: 18,
                   fontWeight: FontWeight.bold,
-                  color: Color.fromARGB(255, 45, 45, 45),
+                  color: Cores.textoEscuro,
                 ),
               ),
             ),
@@ -136,13 +150,14 @@ class _HomeScreenState extends State<HomeScreen> {
                   return Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 4),
                     child: InkWell(
+                      // tocar no chip já abre Explorar com o filtro aplicado
                       onTap: () => widget.onExplorar(
                           categoria: cat['label'] as String),
                       borderRadius: BorderRadius.circular(12),
                       child: Container(
                         width: 80,
                         decoration: BoxDecoration(
-                          color: const Color.fromARGB(255, 213, 204, 230),
+                          color: Cores.primariaClara,
                           borderRadius: BorderRadius.circular(12),
                         ),
                         child: Column(
@@ -150,15 +165,14 @@ class _HomeScreenState extends State<HomeScreen> {
                           children: [
                             Icon(
                               cat['icon'] as IconData,
-                              color:
-                                  const Color.fromARGB(255, 107, 91, 149),
+                              color: Cores.primariaEscura,
                             ),
                             const SizedBox(height: 4),
                             Text(
                               (cat['label'] as String).split(' ').first,
                               style: const TextStyle(
                                 fontSize: 10,
-                                color: Color.fromARGB(255, 107, 91, 149),
+                                color: Cores.primariaEscura,
                                 fontWeight: FontWeight.w600,
                               ),
                             ),
@@ -179,7 +193,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 style: TextStyle(
                   fontSize: 18,
                   fontWeight: FontWeight.bold,
-                  color: Color.fromARGB(255, 45, 45, 45),
+                  color: Cores.textoEscuro,
                 ),
               ),
             ),
@@ -188,7 +202,7 @@ class _HomeScreenState extends State<HomeScreen> {
               onReceitaTap: (receita) => _abrirDetalhes(context, receita),
             ),
 
-            // Últimos Favoritos
+            // Seção só aparece se o usuário já favoritou alguma receita
             if (favoritos.isNotEmpty) ...[
               const Padding(
                 padding: EdgeInsets.fromLTRB(16, 24, 16, 8),
@@ -196,14 +210,14 @@ class _HomeScreenState extends State<HomeScreen> {
                   children: [
                     Icon(Icons.favorite,
                         size: 20,
-                        color: Color.fromARGB(255, 107, 91, 149)),
+                        color: Cores.primariaEscura),
                     SizedBox(width: 8),
                     Text(
                       'Seus Favoritos',
                       style: TextStyle(
                         fontSize: 18,
                         fontWeight: FontWeight.bold,
-                        color: Color.fromARGB(255, 45, 45, 45),
+                        color: Cores.textoEscuro,
                       ),
                     ),
                   ],

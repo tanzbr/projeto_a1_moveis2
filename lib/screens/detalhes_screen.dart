@@ -1,6 +1,10 @@
 import 'package:flutter/material.dart';
 import '../models/receita.dart';
 import '../data/database_helper.dart';
+import '../data/favoritos_storage.dart';
+import '../theme/cores.dart';
+import '../theme/espacos.dart';
+import '../widgets/imagem_receita.dart';
 import 'tela_cadastro_receita.dart';
 
 class DetalhesScreen extends StatefulWidget {
@@ -13,6 +17,7 @@ class DetalhesScreen extends StatefulWidget {
 }
 
 class _DetalhesScreenState extends State<DetalhesScreen> {
+  // estado local p/ refletir o ícone na hora, sem esperar o banco
   late bool _favorito;
   late Receita _receita;
 
@@ -21,8 +26,19 @@ class _DetalhesScreenState extends State<DetalhesScreen> {
     super.initState();
     _receita = widget.receita;
     _favorito = _receita.favorito;
+    _carregarFavoritoAtual();
   }
 
+  Future<void> _carregarFavoritoAtual() async {
+    final favorito = await FavoritosStorage.isFavorito(_receita.id);
+    if (!mounted) return;
+    setState(() {
+      _favorito = favorito;
+      _receita.favorito = favorito;
+    });
+  }
+
+  // alterna o favorito: atualiza UI + persiste no SharedPreferences
   Future<void> _toggleFavorito() async {
     setState(() {
       _favorito = !_favorito;
@@ -30,12 +46,13 @@ class _DetalhesScreenState extends State<DetalhesScreen> {
     });
 
     if (_favorito) {
-      await DatabaseHelper.salvarFavorito(_receita.id);
+      await FavoritosStorage.marcarFavorito(_receita.id);
     } else {
-      await DatabaseHelper.removerFavorito(_receita.id);
+      await FavoritosStorage.removerFavorito(_receita.id);
     }
   }
 
+  // abre a tela de cadastro em modo edição reaproveitando o mesmo formulário
   Future<void> _editar() async {
     final resultado = await Navigator.push<int>(
       context,
@@ -44,21 +61,23 @@ class _DetalhesScreenState extends State<DetalhesScreen> {
       ),
     );
     if (resultado == null || !mounted) return;
+    // -1 é o código que a tela de cadastro devolve quando o usuário excluiu
     if (resultado == -1) {
       Navigator.pop(context);
       return;
     }
+    // recarrega do banco p/ refletir os campos editados
     final atualizada = await DatabaseHelper.buscarReceita(resultado);
     if (atualizada == null || !mounted) return;
-    atualizada.favorito = _favorito;
+    atualizada.favorito = _favorito; // preserva o estado de favorito atual
     setState(() => _receita = atualizada);
   }
 
   @override
   Widget build(BuildContext context) {
     final receita = _receita;
-    const corPrincipal = Color.fromARGB(255, 107, 91, 149);
-    const corBadge = Color.fromARGB(255, 213, 204, 230);
+    const corPrincipal = Cores.primariaEscura;
+    const corBadge = Cores.primariaClara;
 
     return Scaffold(
       appBar: AppBar(
@@ -81,17 +100,17 @@ class _DetalhesScreenState extends State<DetalhesScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Imagem da receita (Hero)
-            Hero(
-              tag: 'receita-imagem-${receita.id}',
-              child: SizedBox(
-                width: double.infinity,
-                height: 250,
-                child: _buildImagem(receita.imagemUrl),
-              ),
+            // heroTag idêntico ao do card faz a imagem "voar" entre as telas
+            ImagemReceita(
+              url: receita.imagemUrl,
+              largura: double.infinity,
+              altura: 250,
+              raio: 0,
+              tamanhoIcone: 60,
+              heroTag: 'receita-imagem-${receita.id}',
             ),
             Padding(
-              padding: const EdgeInsets.all(16),
+              padding: const EdgeInsets.all(Espacos.padPadrao),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -100,7 +119,7 @@ class _DetalhesScreenState extends State<DetalhesScreen> {
                     style: const TextStyle(
                       fontSize: 22,
                       fontWeight: FontWeight.bold,
-                      color: Color.fromARGB(255, 45, 45, 45),
+                      color: Cores.textoEscuro,
                     ),
                   ),
                   const SizedBox(height: 8),
@@ -108,7 +127,7 @@ class _DetalhesScreenState extends State<DetalhesScreen> {
                     receita.descricao,
                     style: const TextStyle(
                         fontSize: 14,
-                        color: Color.fromARGB(255, 117, 117, 117)),
+                        color: Cores.textoCinza),
                   ),
                   const SizedBox(height: 16),
                   // Badges
@@ -134,7 +153,7 @@ class _DetalhesScreenState extends State<DetalhesScreen> {
                     style: TextStyle(
                       fontSize: 18,
                       fontWeight: FontWeight.bold,
-                      color: Color.fromARGB(255, 45, 45, 45),
+                      color: Cores.textoEscuro,
                     ),
                   ),
                   const SizedBox(height: 8),
@@ -153,8 +172,7 @@ class _DetalhesScreenState extends State<DetalhesScreen> {
                               ingrediente.quantidade,
                               style: const TextStyle(
                                   fontSize: 14,
-                                  color:
-                                      Color.fromARGB(255, 117, 117, 117)),
+                                  color: Cores.textoCinza),
                             ),
                           ],
                         ),
@@ -167,10 +185,11 @@ class _DetalhesScreenState extends State<DetalhesScreen> {
                     style: TextStyle(
                       fontSize: 18,
                       fontWeight: FontWeight.bold,
-                      color: Color.fromARGB(255, 45, 45, 45),
+                      color: Cores.textoEscuro,
                     ),
                   ),
                   const SizedBox(height: 8),
+                  // asMap().entries dá acesso ao índice p/ numerar os passos
                   ...receita.modoPreparo.asMap().entries.map(
                         (entry) => Padding(
                           padding:
@@ -216,42 +235,6 @@ class _DetalhesScreenState extends State<DetalhesScreen> {
               ),
             ),
           ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildImagem(String url) {
-    if (url.isEmpty) {
-      return Container(
-        color: Colors.grey[200],
-        child: const Center(
-          child: Icon(Icons.restaurant, size: 60, color: Colors.grey),
-        ),
-      );
-    }
-    if (isAssetImage(url)) {
-      return Image.asset(url, fit: BoxFit.cover);
-    }
-    if (isBase64Image(url)) {
-      final bytes = base64ToBytes(url);
-      if (bytes == null) {
-        return Container(
-          color: Colors.grey[200],
-          child: const Center(
-            child: Icon(Icons.restaurant, size: 60, color: Colors.grey),
-          ),
-        );
-      }
-      return Image.memory(bytes, fit: BoxFit.cover);
-    }
-    return Image.network(
-      url,
-      fit: BoxFit.cover,
-      errorBuilder: (ctx, err, st) => Container(
-        color: Colors.grey[200],
-        child: const Center(
-          child: Icon(Icons.restaurant, size: 60, color: Colors.grey),
         ),
       ),
     );

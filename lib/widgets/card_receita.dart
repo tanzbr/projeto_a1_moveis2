@@ -1,57 +1,26 @@
 import 'package:flutter/material.dart';
 import '../models/receita.dart';
+import '../theme/cores.dart';
+import '../theme/espacos.dart';
+import 'imagem_receita.dart';
 
+// card vertical usado no GridView da Explorar
 class CardReceita extends StatelessWidget {
   final Receita receita;
   final VoidCallback onTap;
 
   const CardReceita({super.key, required this.receita, required this.onTap});
 
-  Widget _buildImagem(String url) {
-    if (url.isEmpty) {
-      return Container(
-        color: Colors.grey[200],
-        child: const Center(
-          child: Icon(Icons.restaurant, size: 40, color: Colors.grey),
-        ),
-      );
-    }
-    if (isAssetImage(url)) {
-      return Image.asset(url, fit: BoxFit.cover);
-    }
-    if (isBase64Image(url)) {
-      final bytes = base64ToBytes(url);
-      if (bytes == null) {
-        return Container(
-          color: Colors.grey[200],
-          child: const Center(
-            child: Icon(Icons.restaurant, size: 40, color: Colors.grey),
-          ),
-        );
-      }
-      return Image.memory(bytes, fit: BoxFit.cover);
-    }
-    return Image.network(
-      url,
-      fit: BoxFit.cover,
-      errorBuilder: (ctx, err, st) => Container(
-        color: Colors.grey[200],
-        child: const Center(
-          child: Icon(Icons.restaurant, size: 40, color: Colors.grey),
-        ),
-      ),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
+    // InkWell garante o efeito ripple ao tocar (em vez de Container puro)
     return InkWell(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(12),
+      borderRadius: BorderRadius.circular(Espacos.raioCard),
       child: Container(
         decoration: BoxDecoration(
           color: Colors.white,
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(Espacos.raioCard),
           boxShadow: const [
             BoxShadow(
                 color: Colors.black12, blurRadius: 4, offset: Offset(0, 2)),
@@ -60,6 +29,7 @@ class CardReceita extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            // mesmo tag da DetalhesScreen, animação Hero da imagem
             Hero(
               tag: 'receita-imagem-${receita.id}',
               child: ClipRRect(
@@ -68,7 +38,10 @@ class CardReceita extends StatelessWidget {
                 child: SizedBox(
                   height: 110,
                   width: double.infinity,
-                  child: _buildImagem(receita.imagemUrl),
+                  child: ImagemReceita(
+                    url: receita.imagemUrl,
+                    raio: 0,
+                  ),
                 ),
               ),
             ),
@@ -82,7 +55,7 @@ class CardReceita extends StatelessWidget {
                     style: const TextStyle(
                       fontSize: 13,
                       fontWeight: FontWeight.w600,
-                      color: Color.fromARGB(255, 45, 45, 45),
+                      color: Cores.textoEscuro,
                     ),
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
@@ -92,24 +65,24 @@ class CardReceita extends StatelessWidget {
                     children: [
                       const Icon(Icons.timer,
                           size: 13,
-                          color: Color.fromARGB(255, 117, 117, 117)),
+                          color: Cores.textoCinza),
                       const SizedBox(width: 2),
                       Text(
                         '${receita.tempoMinutos} min',
                         style: const TextStyle(
                             fontSize: 11,
-                            color: Color.fromARGB(255, 117, 117, 117)),
+                            color: Cores.textoCinza),
                       ),
                       const SizedBox(width: 8),
                       const Icon(Icons.people,
                           size: 13,
-                          color: Color.fromARGB(255, 117, 117, 117)),
+                          color: Cores.textoCinza),
                       const SizedBox(width: 2),
                       Text(
                         '${receita.porcoes}',
                         style: const TextStyle(
                             fontSize: 11,
-                            color: Color.fromARGB(255, 117, 117, 117)),
+                            color: Cores.textoCinza),
                       ),
                     ],
                   ),
@@ -118,14 +91,14 @@ class CardReceita extends StatelessWidget {
                     children: [
                       const Icon(Icons.local_fire_department,
                           size: 13,
-                          color: Color.fromARGB(255, 155, 142, 193)),
+                          color: Cores.primaria),
                       const SizedBox(width: 2),
                       Expanded(
                         child: Text(
                           receita.dificuldade,
                           style: const TextStyle(
                               fontSize: 11,
-                              color: Color.fromARGB(255, 155, 142, 193)),
+                              color: Cores.primaria),
                           overflow: TextOverflow.ellipsis,
                         ),
                       ),
@@ -136,14 +109,14 @@ class CardReceita extends StatelessWidget {
                     padding:
                         const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                     decoration: BoxDecoration(
-                      color: const Color.fromARGB(255, 213, 204, 230),
+                      color: Cores.primariaClara,
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: Text(
                       receita.categoria,
                       style: const TextStyle(
                         fontSize: 10,
-                        color: Color.fromARGB(255, 107, 91, 149),
+                        color: Cores.primariaEscura,
                         fontWeight: FontWeight.w500,
                       ),
                       overflow: TextOverflow.ellipsis,

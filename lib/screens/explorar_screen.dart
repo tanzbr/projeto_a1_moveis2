@@ -1,22 +1,25 @@
 import 'package:flutter/material.dart';
 import '../data/database_helper.dart';
 import '../models/receita.dart';
+import '../theme/cores.dart';
+import '../theme/espacos.dart';
+import '../widgets/campo_busca.dart';
 import '../widgets/card_receita.dart';
 import 'detalhes_screen.dart';
 
 class ExplorarScreen extends StatefulWidget {
-  final String? categoriaInicial;
-
-  const ExplorarScreen({super.key, this.categoriaInicial});
+  const ExplorarScreen({super.key});
 
   @override
-  State<ExplorarScreen> createState() => _ExplorarScreenState();
+  State<ExplorarScreen> createState() => ExplorarScreenState();
 }
 
-class _ExplorarScreenState extends State<ExplorarScreen> {
+class ExplorarScreenState extends State<ExplorarScreen> {
+  // controller do TextField — precisa ser disposto p/ não vazar memória
   final _buscaController = TextEditingController();
   List<Receita> _receitas = [];
 
+  // valores possíveis dos chips de categoria (inclui "Todos" = sem filtro)
   final List<String> _categorias = [
     'Todos',
     'Café da Manhã',
@@ -24,6 +27,7 @@ class _ExplorarScreenState extends State<ExplorarScreen> {
     'Jantar',
     'Lanches'
   ];
+  // estado dos 3 filtros aplicados sobre a lista
   String _categoriaAtual = 'Todos';
   String _filtroTempo = 'Todos';
   String _filtroDificuldade = 'Todos';
@@ -31,17 +35,23 @@ class _ExplorarScreenState extends State<ExplorarScreen> {
   @override
   void initState() {
     super.initState();
-    if (widget.categoriaInicial != null &&
-        _categorias.contains(widget.categoriaInicial)) {
-      _categoriaAtual = widget.categoriaInicial!;
-    }
     _carregarReceitas();
   }
 
   @override
   void dispose() {
-    _buscaController.dispose();
+    _buscaController.dispose(); // libera o controller
     super.dispose();
+  }
+
+  Future<void> recarregar() => _carregarReceitas();
+
+  // chamado pela TelaNavegacao quando o usuário escolhe categoria na Home
+  void selecionarCategoria(String? cat) {
+    if (!mounted) return;
+    setState(() {
+      _categoriaAtual = (cat != null && _categorias.contains(cat)) ? cat : 'Todos';
+    });
   }
 
   Future<void> _carregarReceitas() async {
@@ -50,14 +60,18 @@ class _ExplorarScreenState extends State<ExplorarScreen> {
     setState(() => _receitas = dados);
   }
 
+  // getter — recalcula a lista filtrada a cada build
+  // (o conjunto é pequeno, então filtrar em memória é suficiente)
   List<Receita> get _receitasFiltradas {
     final busca = _buscaController.text.toLowerCase().trim();
 
     return _receitas.where((r) {
+      // filtro 1: categoria selecionada nos chips
       if (_categoriaAtual != 'Todos' && r.categoria != _categoriaAtual) {
         return false;
       }
 
+      // filtro 2: texto da busca casa com nome OU com algum ingrediente
       if (busca.isNotEmpty) {
         final nomeMatch = r.nome.toLowerCase().contains(busca);
         final ingredienteMatch =
@@ -65,10 +79,12 @@ class _ExplorarScreenState extends State<ExplorarScreen> {
         if (!nomeMatch && !ingredienteMatch) return false;
       }
 
+      // filtro 3: tempo máximo de preparo
       if (_filtroTempo == 'Até 10 min' && r.tempoMinutos > 10) return false;
       if (_filtroTempo == 'Até 20 min' && r.tempoMinutos > 20) return false;
       if (_filtroTempo == 'Até 30 min' && r.tempoMinutos > 30) return false;
 
+      // filtro 4: dificuldade exata
       if (_filtroDificuldade != 'Todos' &&
           r.dificuldade != _filtroDificuldade) {
         return false;
@@ -106,22 +122,11 @@ class _ExplorarScreenState extends State<ExplorarScreen> {
           ),
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
-            child: TextField(
+            child: CampoBusca(
               controller: _buscaController,
+              hint: 'Buscar por nome ou ingrediente...',
+              // setState vazio só p/ refazer o build com o filtro atualizado
               onChanged: (_) => setState(() {}),
-              decoration: InputDecoration(
-                hintText: 'Buscar por nome ou ingrediente...',
-                hintStyle: const TextStyle(fontSize: 14),
-                prefixIcon: const Icon(Icons.search,
-                    color: Color.fromARGB(255, 155, 142, 193)),
-                filled: true,
-                fillColor: const Color.fromARGB(255, 240, 235, 248),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: BorderSide.none,
-                ),
-                contentPadding: const EdgeInsets.symmetric(vertical: 0),
-              ),
             ),
           ),
           Padding(
@@ -185,11 +190,11 @@ class _ExplorarScreenState extends State<ExplorarScreen> {
                     child: Text(
                       'Nenhuma receita encontrada.',
                       style: TextStyle(
-                          color: Color.fromARGB(255, 117, 117, 117)),
+                          color: Cores.textoCinza),
                     ),
                   )
                 : GridView.builder(
-                    padding: const EdgeInsets.all(16),
+                    padding: const EdgeInsets.all(Espacos.padPadrao),
                     gridDelegate:
                         const SliverGridDelegateWithFixedCrossAxisCount(
                       crossAxisCount: 2,

@@ -5,10 +5,13 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:sqflite/sqflite.dart' show databaseFactory;
 import 'package:sqflite_common_ffi_web/sqflite_ffi_web.dart';
 import 'screens/tela_navegacao.dart';
+import 'theme/cores.dart';
 
 Future<void> main() async {
+  // necessário antes de chamar plugins async (sqflite) fora do runApp
   WidgetsFlutterBinding.ensureInitialized();
 
+  // sqflite no navegador precisa do factory FFI sem web worker
   if (kIsWeb) {
     databaseFactory = databaseFactoryFfiWebNoWebWorker;
   }
@@ -17,13 +20,14 @@ Future<void> main() async {
     MaterialApp(
       debugShowCheckedModeBanner: false,
       title: 'ReceitasRápidas',
+      // tema único e centralizado — evita repetir estilo em cada tela
       theme: ThemeData(
         useMaterial3: true,
         fontFamily: GoogleFonts.poppins().fontFamily,
-        colorSchemeSeed: const Color.fromARGB(255, 155, 142, 193),
-        scaffoldBackgroundColor: const Color.fromARGB(255, 250, 248, 252),
+        colorSchemeSeed: Cores.primaria,
+        scaffoldBackgroundColor: Cores.fundoTela,
         appBarTheme: AppBarTheme(
-          backgroundColor: const Color.fromARGB(255, 155, 142, 193),
+          backgroundColor: Cores.primaria,
           foregroundColor: Colors.white,
           titleTextStyle: TextStyle(
             fontFamily: GoogleFonts.poppins().fontFamily,
@@ -33,6 +37,7 @@ Future<void> main() async {
           ),
         ),
       ),
+      // permite arrastar com o mouse (útil ao rodar no Chrome)
       scrollBehavior: const MaterialScrollBehavior().copyWith(
         dragDevices: {PointerDeviceKind.touch, PointerDeviceKind.mouse},
       ),
