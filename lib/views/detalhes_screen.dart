@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
+import '../controllers/receita_controller.dart';
 import '../models/receita.dart';
-import '../data/database_helper.dart';
-import '../data/favoritos_storage.dart';
 import '../theme/cores.dart';
 import '../theme/espacos.dart';
 import '../widgets/imagem_receita.dart';
@@ -17,6 +16,7 @@ class DetalhesScreen extends StatefulWidget {
 }
 
 class _DetalhesScreenState extends State<DetalhesScreen> {
+  final ReceitaController _controller = ReceitaController();
   // estado local p/ refletir o ícone na hora, sem esperar o banco
   late bool _favorito;
   late Receita _receita;
@@ -26,19 +26,15 @@ class _DetalhesScreenState extends State<DetalhesScreen> {
     super.initState();
     _receita = widget.receita;
     _favorito = _receita.favorito;
-    _carregarFavoritoAtual();
   }
 
-  Future<void> _carregarFavoritoAtual() async {
-    final favorito = await FavoritosStorage.isFavorito(_receita.id);
-    if (!mounted) return;
-    setState(() {
-      _favorito = favorito;
-      _receita.favorito = favorito;
-    });
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
   }
 
-  // alterna o favorito: atualiza UI + persiste no SharedPreferences
+  // alterna o favorito: atualiza UI + persiste no SQLite
   Future<void> _toggleFavorito() async {
     setState(() {
       _favorito = !_favorito;
@@ -46,9 +42,9 @@ class _DetalhesScreenState extends State<DetalhesScreen> {
     });
 
     if (_favorito) {
-      await FavoritosStorage.marcarFavorito(_receita.id);
+      await _controller.salvarFavorito(_receita.id);
     } else {
-      await FavoritosStorage.removerFavorito(_receita.id);
+      await _controller.removerFavorito(_receita.id);
     }
   }
 
@@ -56,9 +52,7 @@ class _DetalhesScreenState extends State<DetalhesScreen> {
   Future<void> _editar() async {
     final resultado = await Navigator.push<int>(
       context,
-      MaterialPageRoute(
-        builder: (_) => TelaCadastroReceita(receita: _receita),
-      ),
+      MaterialPageRoute(builder: (_) => TelaCadastroReceita(receita: _receita)),
     );
     if (resultado == null || !mounted) return;
     // -1 é o código que a tela de cadastro devolve quando o usuário excluiu
@@ -67,7 +61,7 @@ class _DetalhesScreenState extends State<DetalhesScreen> {
       return;
     }
     // recarrega do banco p/ refletir os campos editados
-    final atualizada = await DatabaseHelper.buscarReceita(resultado);
+    final atualizada = await _controller.buscarReceita(resultado);
     if (atualizada == null || !mounted) return;
     atualizada.favorito = _favorito; // preserva o estado de favorito atual
     setState(() => _receita = atualizada);
@@ -126,8 +120,9 @@ class _DetalhesScreenState extends State<DetalhesScreen> {
                   Text(
                     receita.descricao,
                     style: const TextStyle(
-                        fontSize: 14,
-                        color: Cores.textoCinza),
+                      fontSize: 14,
+                      color: Cores.textoCinza,
+                    ),
                   ),
                   const SizedBox(height: 16),
                   // Badges
@@ -135,14 +130,30 @@ class _DetalhesScreenState extends State<DetalhesScreen> {
                     spacing: 8,
                     runSpacing: 8,
                     children: [
-                      _badge(Icons.timer, '${receita.tempoMinutos} min',
-                          corPrincipal, corBadge),
-                      _badge(Icons.people, '${receita.porcoes} porções',
-                          corPrincipal, corBadge),
-                      _badge(Icons.local_fire_department,
-                          receita.dificuldade, corPrincipal, corBadge),
-                      _badge(Icons.category, receita.categoria,
-                          corPrincipal, corBadge),
+                      _badge(
+                        Icons.timer,
+                        '${receita.tempoMinutos} min',
+                        corPrincipal,
+                        corBadge,
+                      ),
+                      _badge(
+                        Icons.people,
+                        '${receita.porcoes} porções',
+                        corPrincipal,
+                        corBadge,
+                      ),
+                      _badge(
+                        Icons.local_fire_department,
+                        receita.dificuldade,
+                        corPrincipal,
+                        corBadge,
+                      ),
+                      _badge(
+                        Icons.category,
+                        receita.categoria,
+                        corPrincipal,
+                        corBadge,
+                      ),
                     ],
                   ),
                   const SizedBox(height: 24),
@@ -157,26 +168,34 @@ class _DetalhesScreenState extends State<DetalhesScreen> {
                     ),
                   ),
                   const SizedBox(height: 8),
-                  ...receita.ingredientes.map((ingrediente) => Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 4),
-                        child: Row(
-                          children: [
-                            const Icon(Icons.circle,
-                                size: 6, color: corPrincipal),
-                            const SizedBox(width: 10),
-                            Expanded(
-                              child: Text(ingrediente.nome,
-                                  style: const TextStyle(fontSize: 14)),
+                  ...receita.ingredientes.map(
+                    (ingrediente) => Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 4),
+                      child: Row(
+                        children: [
+                          const Icon(
+                            Icons.circle,
+                            size: 6,
+                            color: corPrincipal,
+                          ),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Text(
+                              ingrediente.nome,
+                              style: const TextStyle(fontSize: 14),
                             ),
-                            Text(
-                              ingrediente.quantidade,
-                              style: const TextStyle(
-                                  fontSize: 14,
-                                  color: Cores.textoCinza),
+                          ),
+                          Text(
+                            ingrediente.quantidade,
+                            style: const TextStyle(
+                              fontSize: 14,
+                              color: Cores.textoCinza,
                             ),
-                          ],
-                        ),
-                      )),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
                   const SizedBox(height: 24),
 
                   // Modo de Preparo
@@ -191,45 +210,43 @@ class _DetalhesScreenState extends State<DetalhesScreen> {
                   const SizedBox(height: 8),
                   // asMap().entries dá acesso ao índice p/ numerar os passos
                   ...receita.modoPreparo.asMap().entries.map(
-                        (entry) => Padding(
-                          padding:
-                              const EdgeInsets.symmetric(vertical: 6),
-                          child: Row(
-                            crossAxisAlignment:
-                                CrossAxisAlignment.start,
-                            children: [
-                              Container(
-                                width: 28,
-                                height: 28,
-                                decoration: const BoxDecoration(
-                                  color: corPrincipal,
-                                  shape: BoxShape.circle,
-                                ),
-                                child: Center(
-                                  child: Text(
-                                    '${entry.key + 1}',
-                                    style: const TextStyle(
-                                      fontSize: 13,
-                                      fontWeight: FontWeight.bold,
-                                      color: Colors.white,
-                                    ),
-                                  ),
+                    (entry) => Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 6),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Container(
+                            width: 28,
+                            height: 28,
+                            decoration: const BoxDecoration(
+                              color: corPrincipal,
+                              shape: BoxShape.circle,
+                            ),
+                            child: Center(
+                              child: Text(
+                                '${entry.key + 1}',
+                                style: const TextStyle(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.white,
                                 ),
                               ),
-                              const SizedBox(width: 12),
-                              Expanded(
-                                child: Padding(
-                                  padding:
-                                      const EdgeInsets.only(top: 3),
-                                  child: Text(entry.value,
-                                      style: const TextStyle(
-                                          fontSize: 14)),
-                                ),
-                              ),
-                            ],
+                            ),
                           ),
-                        ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Padding(
+                              padding: const EdgeInsets.only(top: 3),
+                              child: Text(
+                                entry.value,
+                                style: const TextStyle(fontSize: 14),
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
+                    ),
+                  ),
                   const SizedBox(height: 24),
                 ],
               ),
@@ -240,11 +257,9 @@ class _DetalhesScreenState extends State<DetalhesScreen> {
     );
   }
 
-  Widget _badge(
-      IconData icon, String text, Color corIcone, Color corFundo) {
+  Widget _badge(IconData icon, String text, Color corIcone, Color corFundo) {
     return Container(
-      padding:
-          const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       decoration: BoxDecoration(
         color: corFundo,
         borderRadius: BorderRadius.circular(20),
@@ -257,9 +272,10 @@ class _DetalhesScreenState extends State<DetalhesScreen> {
           Text(
             text,
             style: TextStyle(
-                fontSize: 12,
-                color: corIcone,
-                fontWeight: FontWeight.w500),
+              fontSize: 12,
+              color: corIcone,
+              fontWeight: FontWeight.w500,
+            ),
           ),
         ],
       ),

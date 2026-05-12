@@ -29,7 +29,7 @@ class CardReceita extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // mesmo tag da DetalhesScreen, animação Hero da imagem
+            // mesmo tag da DetalhesScreen → animação Hero da imagem
             Hero(
               tag: 'receita-imagem-${receita.id}',
               child: ClipRRect(

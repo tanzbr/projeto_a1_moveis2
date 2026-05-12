@@ -9,7 +9,7 @@ class Ingrediente {
   const Ingrediente({required this.nome, required this.quantidade});
 }
 
-// modelo principal da receita; favoritos ficam fora do SQLite
+// modelo principal — espelha as colunas da tabela `receitas` no SQLite
 class Receita {
   final int id;
   final String nome;
@@ -22,7 +22,7 @@ class Receita {
   final List<Ingrediente> ingredientes;
   final List<String> modoPreparo;
   final bool destaque;
-  bool favorito; // estado de UI/persistência via SharedPreferences
+  bool favorito; // único campo mutável: alternado pelo botão de favorito
 
   Receita({
     required this.id,
@@ -58,6 +58,7 @@ class Receita {
         'modoPreparo': jsonEncode(modoPreparo),
         // booleanos viram 0/1 (SQLite não tem tipo bool nativo)
         'destaque': destaque ? 1 : 0,
+        'favorito': favorito ? 1 : 0,
       };
 
   // reconstrói o objeto a partir da linha do banco
@@ -82,7 +83,7 @@ class Receita {
           .toList(),
       modoPreparo: passosRaw.map((e) => e as String).toList(),
       destaque: (m['destaque'] as int) == 1,
-      favorito: false,
+      favorito: (m['favorito'] as int?) == 1,
     );
   }
 }
