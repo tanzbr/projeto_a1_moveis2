@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
-import '../controllers/receita_controller.dart';
+import '../controllers/auth_controller.dart';
+import '../controllers/favorito_controller.dart';
 import '../models/receita.dart';
 import '../theme/cores.dart';
 import '../theme/espacos.dart';
 import '../widgets/campo_busca.dart';
 import '../widgets/card_receita_lista.dart';
+import 'auth_gate.dart';
 import 'detalhes_screen.dart';
 
 class FavoritosScreen extends StatefulWidget {
@@ -15,40 +17,40 @@ class FavoritosScreen extends StatefulWidget {
 }
 
 class FavoritosScreenState extends State<FavoritosScreen> {
-  final ReceitaController _controller = ReceitaController();
+  final FavoritoController _controller = FavoritoController.instance;
   final _filtroController = TextEditingController();
 
   @override
   void initState() {
     super.initState();
-    // listener no controller refaz o filtro a cada digitação
     _filtroController.addListener(() => setState(() {}));
-    _controller.carregarReceitas();
   }
 
   @override
   void dispose() {
     _filtroController.dispose();
-    _controller.dispose();
     super.dispose();
   }
 
-  Future<void> recarregar() => _controller.carregarReceitas();
+  Future<void> recarregar() => _controller.recarregar();
 
   Future<void> _abrirDetalhes(Receita receita) async {
     await Navigator.push(
       context,
       MaterialPageRoute(builder: (_) => DetalhesScreen(receita: receita)),
     );
-    // ao voltar, recarrega caso o usuário tenha desfavoritado lá dentro
-    _controller.carregarReceitas();
+    await _controller.recarregar();
   }
 
   Future<void> _desfavoritar(Receita receita) async {
-    await _controller.removerFavorito(receita.id);
-    receita.favorito = false;
+    final autenticado = await exigirLogin(context);
+    if (!mounted || !autenticado) {
+      // recarrega para "reverter" o swipe quando o usuario cancelou o login
+      await _controller.recarregar();
+      return;
+    }
+    await _controller.desfavoritar(receita.id);
     if (!mounted) return;
-    // feedback visual rápido confirmando a ação
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text('${receita.nome} removido dos favoritos'),
@@ -57,14 +59,10 @@ class FavoritosScreenState extends State<FavoritosScreen> {
     );
   }
 
-  List<Receita> get _favoritas =>
-      _controller.receitas.where((r) => r.favorito).toList();
-
-  // filtra os favoritos pelo texto digitado (apenas pelo nome)
-  List<Receita> get _filtradas {
+  List<Receita> _filtrar(List<Receita> favoritas) {
     final q = _filtroController.text.toLowerCase().trim();
-    if (q.isEmpty) return _favoritas;
-    return _favoritas.where((r) => r.nome.toLowerCase().contains(q)).toList();
+    if (q.isEmpty) return favoritas;
+    return favoritas.where((r) => r.nome.toLowerCase().contains(q)).toList();
   }
 
   @override
@@ -72,14 +70,15 @@ class FavoritosScreenState extends State<FavoritosScreen> {
     return Scaffold(
       appBar: AppBar(title: const Text('Minhas Receitas Salvas')),
       body: ListenableBuilder(
-        listenable: _controller,
+        listenable: Listenable.merge([_controller, AuthController.instance]),
         builder: (context, child) {
-          final favoritas = _favoritas;
-          final filtradas = _filtradas;
-
+          if (!AuthController.instance.estaLogado) return _semLogin();
           if (_controller.carregando) {
             return const Center(child: CircularProgressIndicator());
           }
+
+          final favoritas = _controller.receitas;
+          final filtradas = _filtrar(favoritas);
 
           return Column(
             children: [
@@ -157,6 +156,32 @@ class FavoritosScreenState extends State<FavoritosScreen> {
         acaoDireita: IconButton(
           icon: const Icon(Icons.favorite, color: Colors.redAccent),
           onPressed: () => _desfavoritar(receita),
+        ),
+      ),
+    );
+  }
+
+  Widget _semLogin() {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(Espacos.padPadrao),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(Icons.lock_outline,
+                size: 64, color: Cores.primariaEscura),
+            const SizedBox(height: 12),
+            const Text(
+              'Entre para ver seus favoritos.',
+              style: TextStyle(fontSize: 16, color: Cores.textoEscuro),
+            ),
+            const SizedBox(height: 12),
+            FilledButton.icon(
+              icon: const Icon(Icons.login),
+              label: const Text('Entrar'),
+              onPressed: () => exigirLogin(context),
+            ),
+          ],
         ),
       ),
     );

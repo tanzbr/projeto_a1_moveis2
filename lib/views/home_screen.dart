@@ -1,11 +1,14 @@
 import 'package:flutter/material.dart';
+import '../controllers/favorito_controller.dart';
 import '../controllers/receita_controller.dart';
 import '../models/receita.dart';
 import '../theme/cores.dart';
 import '../widgets/carrossel_receita.dart';
 import '../widgets/card_receita_lista.dart';
+import 'auth_gate.dart';
 import 'detalhes_screen.dart';
 import 'tela_cadastro_receita.dart';
+import 'tela_lista_compras.dart';
 
 class HomeScreen extends StatefulWidget {
   // callback usado p/ pedir à TelaNavegacao p/ abrir a aba Explorar
@@ -32,7 +35,7 @@ class HomeScreenState extends State<HomeScreen> {
   @override
   void initState() {
     super.initState();
-    _controller.carregarReceitas(); // carga inicial vinda do banco
+    _controller.carregarReceitasPublicas(); // carga inicial vinda do banco
   }
 
   @override
@@ -42,7 +45,7 @@ class HomeScreenState extends State<HomeScreen> {
   }
 
   // exposto à TelaNavegacao via GlobalKey p/ atualizar ao voltar p/ aba
-  Future<void> recarregar() => _controller.carregarReceitas();
+  Future<void> recarregar() => _controller.carregarReceitasPublicas();
 
   Future<void> _abrirDetalhes(BuildContext context, Receita receita) async {
     // await garante que recarregamos só depois que o usuário fechar a tela
@@ -50,7 +53,7 @@ class HomeScreenState extends State<HomeScreen> {
       context,
       MaterialPageRoute(builder: (_) => DetalhesScreen(receita: receita)),
     );
-    _controller.carregarReceitas(); // reflete favorito/edições ao voltar
+    _controller.carregarReceitasPublicas(); // reflete favorito/edições ao voltar
   }
 
   @override
@@ -58,25 +61,34 @@ class HomeScreenState extends State<HomeScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('ReceitasRápidas'),
-        actions: const [
-          Padding(
-            padding: EdgeInsets.only(right: 16),
-            child: Icon(Icons.menu_book),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.shopping_cart_outlined),
+            tooltip: 'Lista de compras',
+            onPressed: () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const TelaListaCompras()),
+            ),
           ),
         ],
       ),
       // FAB abre o cadastro; espera o id devolvido p/ confirmar a inserção
+      // heroTag unico evita colisao com o FAB da tela Minhas Receitas
       floatingActionButton: FloatingActionButton.extended(
+        heroTag: 'fab_home_nova_receita',
         onPressed: () async {
-          // capturado antes do await p/ não usar context após gap async
+          // capturados antes do await p/ não usar context após gap async
           final messenger = ScaffoldMessenger.of(context);
-          final novoId = await Navigator.push<int>(
-            context,
+          final navigator = Navigator.of(context);
+          // criar receita exige login; o gate abre a tela de login se preciso
+          final autenticado = await exigirLogin(context);
+          if (!mounted || !autenticado) return;
+          final novoId = await navigator.push<int>(
             MaterialPageRoute(builder: (_) => const TelaCadastroReceita()),
           );
           if (!mounted) return;
           if (novoId != null) {
-            _controller.carregarReceitas();
+            _controller.carregarReceitasPublicas();
             messenger.showSnackBar(
               const SnackBar(content: Text('Receita cadastrada!')),
             );
@@ -86,12 +98,15 @@ class HomeScreenState extends State<HomeScreen> {
         label: const Text('Nova receita'),
       ),
       body: ListenableBuilder(
-        listenable: _controller,
+        listenable: Listenable.merge(
+          [_controller, FavoritoController.instance],
+        ),
         builder: (context, child) {
           // filtros leves em memória — não precisa de query no banco p/ isso
           final receitas = _controller.receitas;
           final receitasDestaque = receitas.where((r) => r.destaque).toList();
-          final favoritos = receitas.where((r) => r.favorito).toList();
+          // favoritos vem da tabela por-usuario, nao mais da coluna na receita
+          final favoritos = FavoritoController.instance.receitas;
 
           return SingleChildScrollView(
             child: Column(

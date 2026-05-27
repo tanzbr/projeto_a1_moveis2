@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../models/receita.dart';
 import '../theme/cores.dart';
 import '../theme/espacos.dart';
+import 'badge_avaliacao.dart';
 import 'imagem_receita.dart';
 
 // card vertical usado no GridView da Explorar
@@ -101,6 +102,12 @@ class CardReceita extends StatelessWidget {
                               color: Cores.primaria),
                           overflow: TextOverflow.ellipsis,
                         ),
+                      ),
+                      BadgeAvaliacao(
+                        media: receita.mediaAvaliacao,
+                        total: receita.totalAvaliacoes,
+                        tamanhoIcone: 12,
+                        tamanhoTexto: 11,
                       ),
                     ],
                   ),

@@ -1,8 +1,10 @@
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
+import '../controllers/auth_controller.dart';
 import '../controllers/receita_controller.dart';
 import '../models/receita.dart';
+import '../services/imagem_storage_service.dart';
 import '../theme/cores.dart';
 import '../theme/espacos.dart';
 import '../widgets/imagem_receita.dart';
@@ -18,6 +20,7 @@ class TelaCadastroReceita extends StatefulWidget {
 
 class _TelaCadastroReceitaState extends State<TelaCadastroReceita> {
   final ReceitaController _controller = ReceitaController();
+  final ImagemStorageService _storageService = ImagemStorageService();
   // um controller por campo de texto (precisam de dispose no fim)
   final _nomeCtrl = TextEditingController();
   final _descCtrl = TextEditingController();
@@ -28,11 +31,15 @@ class _TelaCadastroReceitaState extends State<TelaCadastroReceita> {
 
   String _dificuldade = 'Fácil';
   String _categoria = 'Almoço';
-  // imagem pode vir de 3 fontes: galeria (bytes/base64) ou asset do seed
+  // imagem pode vir de 3 fontes: galeria (bytes/base64) ou asset/URL existente
   Uint8List? _imagemBytes;
   String? _imagemDataUri;
   String? _imagemAsset;
+  // URL original ao abrir o form em modo edicao; usada p/ apagar do Storage
+  // quando o usuario substitui por uma nova imagem
+  String? _imagemUrlOriginal;
   bool _destaque = false;
+  bool _publica = false; // se true, aparece na Home/Explorar de todos
   bool _salvando = false; // trava o botão p/ evitar duplo clique
 
   bool get _editando => widget.receita != null;
@@ -40,6 +47,7 @@ class _TelaCadastroReceitaState extends State<TelaCadastroReceita> {
   // monta a string que vai p/ o widget de pré-visualização da imagem
   String _urlPreview() {
     if (_imagemBytes != null) return bytesToDataUri(_imagemBytes!);
+    if (_imagemDataUri != null) return _imagemDataUri!;
     if (_imagemAsset != null) return _imagemAsset!;
     return '';
   }
@@ -62,11 +70,14 @@ class _TelaCadastroReceitaState extends State<TelaCadastroReceita> {
       _dificuldade = r.dificuldade;
       _categoria = r.categoria;
       _destaque = r.destaque;
+      _publica = r.publica;
+      _imagemUrlOriginal = r.imagemUrl.isEmpty ? null : r.imagemUrl;
       if (r.imagemUrl.isNotEmpty) {
-        // diferencia foto da galeria (base64) de imagem do seed (asset)
+        // base64 antigo segue funcionando para edicao; nao vira novo upload.
+        // Asset do seed e URL do Storage caem no mesmo slot _imagemAsset
+        // — sao apenas strings renderizadas pelo widget ImagemReceita.
         if (isBase64Image(r.imagemUrl)) {
           _imagemDataUri = r.imagemUrl;
-          _imagemBytes = base64ToBytes(r.imagemUrl);
         } else {
           _imagemAsset = r.imagemUrl;
         }
@@ -86,11 +97,11 @@ class _TelaCadastroReceitaState extends State<TelaCadastroReceita> {
     super.dispose();
   }
 
-  // Foto escolhida pela galeria vira string base64 e fica direto na coluna
-  // `imagemUrl` do SQLite — evita ter que gerenciar arquivos no disco.
+  // Foto escolhida pela galeria fica em memoria; o upload pro Supabase
+  // Storage acontece dentro de _salvar (gera a URL publica).
   Future<void> _escolherImagem() async {
     final picker = ImagePicker();
-    // limita largura/qualidade p/ não estourar o tamanho da linha no banco
+    // limita largura/qualidade p/ economizar banda no upload
     final xfile = await picker.pickImage(
       source: ImageSource.gallery,
       maxWidth: 1024,
@@ -100,8 +111,8 @@ class _TelaCadastroReceitaState extends State<TelaCadastroReceita> {
     final bytes = await xfile.readAsBytes();
     setState(() {
       _imagemBytes = bytes;
-      _imagemDataUri = bytesToDataUri(bytes);
-      _imagemAsset = null; // troca de imagem invalida o asset anterior
+      _imagemDataUri = null; // novo upload sobrescreve qualquer base64 antigo
+      _imagemAsset = null;   // troca de imagem invalida a URL/asset anterior
     });
   }
 
@@ -152,12 +163,38 @@ class _TelaCadastroReceitaState extends State<TelaCadastroReceita> {
     }
 
     setState(() => _salvando = true);
+    // dono: ao editar, preserva o original; ao criar, usa o usuario logado
+    final usuarioId = _editando
+        ? widget.receita!.usuarioId
+        : AuthController.instance.usuario?.id;
+
+    // resolve a imagem: novos bytes -> upload no Storage e usa a URL publica.
+    // Sem bytes novos, mantem a string ja existente (asset, URL antiga, etc.).
+    String imagemUrl;
+    final donoUploadId = AuthController.instance.usuario?.id;
+    if (_imagemBytes != null && donoUploadId != null) {
+      imagemUrl = await _storageService.enviarImagemReceita(
+        donoUploadId,
+        _imagemBytes!,
+      );
+      // se editando e tinha uma imagem antiga no Storage, remove (best-effort)
+      final antiga = _imagemUrlOriginal;
+      if (_editando &&
+          antiga != null &&
+          antiga != imagemUrl &&
+          _storageService.ehUrlDoStorage(antiga)) {
+        await _storageService.removerImagem(antiga);
+      }
+    } else {
+      imagemUrl = _imagemDataUri ?? _imagemAsset ?? '';
+    }
+
     final receita = Receita(
       // id 0 só serve p/ satisfazer o construtor — é descartado no insert
       id: _editando ? widget.receita!.id : 0,
       nome: nome,
       descricao: desc,
-      imagemUrl: _imagemDataUri ?? _imagemAsset ?? '',
+      imagemUrl: imagemUrl,
       tempoMinutos: tempo,
       porcoes: porcoes,
       dificuldade: _dificuldade,
@@ -165,7 +202,8 @@ class _TelaCadastroReceitaState extends State<TelaCadastroReceita> {
       ingredientes: ingredientes,
       modoPreparo: preparo,
       destaque: _destaque,
-      favorito: widget.receita?.favorito ?? false,
+      usuarioId: usuarioId,
+      publica: _publica,
     );
 
     // mesmo formulário cobre INSERT e UPDATE conforme o modo
@@ -325,6 +363,27 @@ class _TelaCadastroReceitaState extends State<TelaCadastroReceita> {
                 activeThumbColor: Cores.primariaEscura,
                 value: _destaque,
                 onChanged: (v) => setState(() => _destaque = v),
+              ),
+            ),
+            const SizedBox(height: 8),
+            Container(
+              decoration: BoxDecoration(
+                color: Cores.fundoSuave,
+                borderRadius: BorderRadius.circular(Espacos.raioCard),
+              ),
+              child: SwitchListTile(
+                title: const Text('Tornar pública'),
+                subtitle: const Text(
+                  'Se desligado, só você verá esta receita',
+                  style: TextStyle(fontSize: 12),
+                ),
+                secondary: Icon(
+                  _publica ? Icons.public : Icons.lock_outline,
+                  color: Cores.primariaEscura,
+                ),
+                activeThumbColor: Cores.primariaEscura,
+                value: _publica,
+                onChanged: (v) => setState(() => _publica = v),
               ),
             ),
             const SizedBox(height: 20),

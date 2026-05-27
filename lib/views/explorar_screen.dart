@@ -35,7 +35,7 @@ class ExplorarScreenState extends State<ExplorarScreen> {
   @override
   void initState() {
     super.initState();
-    _controller.carregarReceitas();
+    _controller.carregarReceitasPublicas();
   }
 
   @override
@@ -45,7 +45,7 @@ class ExplorarScreenState extends State<ExplorarScreen> {
     super.dispose();
   }
 
-  Future<void> recarregar() => _controller.carregarReceitas();
+  Future<void> recarregar() => _controller.carregarReceitasPublicas();
 
   // chamado pela TelaNavegacao quando o usuário escolhe categoria na Home
   void selecionarCategoria(String? cat) {
@@ -233,7 +233,7 @@ class ExplorarScreenState extends State<ExplorarScreen> {
                                       DetalhesScreen(receita: receita),
                                 ),
                               );
-                              _controller.carregarReceitas();
+                              _controller.carregarReceitasPublicas();
                             },
                           );
                         },

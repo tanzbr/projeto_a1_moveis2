@@ -1,9 +1,16 @@
 import 'package:flutter/material.dart';
+import '../controllers/auth_controller.dart';
+import '../controllers/avaliacao_controller.dart';
+import '../controllers/favorito_controller.dart';
+import '../controllers/lista_compras_controller.dart';
 import '../controllers/receita_controller.dart';
 import '../models/receita.dart';
 import '../theme/cores.dart';
 import '../theme/espacos.dart';
+import '../widgets/avaliacao_receita.dart';
+import '../widgets/badge_avaliacao.dart';
 import '../widgets/imagem_receita.dart';
+import 'auth_gate.dart';
 import 'tela_cadastro_receita.dart';
 
 class DetalhesScreen extends StatefulWidget {
@@ -17,39 +24,67 @@ class DetalhesScreen extends StatefulWidget {
 
 class _DetalhesScreenState extends State<DetalhesScreen> {
   final ReceitaController _controller = ReceitaController();
-  // estado local p/ refletir o ícone na hora, sem esperar o banco
-  late bool _favorito;
+  final FavoritoController _favoritoController = FavoritoController.instance;
+  final AvaliacaoController _avaliacaoController = AvaliacaoController();
   late Receita _receita;
 
   @override
   void initState() {
     super.initState();
     _receita = widget.receita;
-    _favorito = _receita.favorito;
+    _avaliacaoController.carregar(_receita.id);
   }
 
   @override
   void dispose() {
     _controller.dispose();
+    _avaliacaoController.dispose();
     super.dispose();
   }
 
-  // alterna o favorito: atualiza UI + persiste no SQLite
+  // alterna o favorito do usuario logado na tabela `favoritos`
   Future<void> _toggleFavorito() async {
-    setState(() {
-      _favorito = !_favorito;
-      _receita.favorito = _favorito;
-    });
+    final autenticado = await exigirLogin(context);
+    if (!mounted || !autenticado) return;
 
-    if (_favorito) {
-      await _controller.salvarFavorito(_receita.id);
+    if (_favoritoController.ehFavorita(_receita.id)) {
+      await _favoritoController.desfavoritar(_receita.id);
     } else {
-      await _controller.removerFavorito(_receita.id);
+      await _favoritoController.favoritar(_receita);
     }
+  }
+
+  // abre painel inferior com o widget de estrelas para avaliar
+  void _abrirAvaliacao() {
+    showModalBottomSheet(
+      context: context,
+      showDragHandle: true,
+      builder: (_) => Padding(
+        padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
+        child: AvaliacaoReceitaWidget(
+          receitaId: _receita.id,
+          controller: _avaliacaoController,
+        ),
+      ),
+    );
+  }
+
+  // adiciona todos os ingredientes desta receita na lista de compras
+  Future<void> _adicionarNaLista() async {
+    final messenger = ScaffoldMessenger.of(context);
+    final autenticado = await exigirLogin(context);
+    if (!mounted || !autenticado) return;
+    await ListaComprasController.instance.adicionarReceitas([_receita]);
+    if (!mounted) return;
+    messenger.showSnackBar(
+      const SnackBar(content: Text('Ingredientes adicionados a lista!')),
+    );
   }
 
   // abre a tela de cadastro em modo edição reaproveitando o mesmo formulário
   Future<void> _editar() async {
+    final autenticado = await exigirLogin(context);
+    if (!mounted || !autenticado) return;
     final resultado = await Navigator.push<int>(
       context,
       MaterialPageRoute(builder: (_) => TelaCadastroReceita(receita: _receita)),
@@ -63,7 +98,6 @@ class _DetalhesScreenState extends State<DetalhesScreen> {
     // recarrega do banco p/ refletir os campos editados
     final atualizada = await _controller.buscarReceita(resultado);
     if (atualizada == null || !mounted) return;
-    atualizada.favorito = _favorito; // preserva o estado de favorito atual
     setState(() => _receita = atualizada);
   }
 
@@ -73,20 +107,54 @@ class _DetalhesScreenState extends State<DetalhesScreen> {
     const corPrincipal = Cores.primariaEscura;
     const corBadge = Cores.primariaClara;
 
+    // botao de editar so' aparece para o dono da receita
+    final usuarioAtual = AuthController.instance.usuario;
+    final eDono = usuarioAtual != null &&
+        receita.usuarioId != null &&
+        receita.usuarioId == usuarioAtual.id;
+
     return Scaffold(
       appBar: AppBar(
         title: Text(receita.nome),
         actions: [
-          IconButton(
-            icon: const Icon(Icons.edit, color: Colors.white),
-            onPressed: _editar,
+          // botao de avaliar (icone reflete se o usuario ja votou)
+          ListenableBuilder(
+            listenable: _avaliacaoController,
+            builder: (context, _) {
+              final jaAvaliei = _avaliacaoController.notaUsuario != null;
+              return IconButton(
+                tooltip: 'Avaliar receita',
+                icon: Icon(
+                  jaAvaliei ? Icons.star : Icons.star_border,
+                  color: Colors.white,
+                ),
+                onPressed: _abrirAvaliacao,
+              );
+            },
           ),
           IconButton(
-            icon: Icon(
-              _favorito ? Icons.favorite : Icons.favorite_border,
-              color: _favorito ? Colors.redAccent : Colors.white,
+            icon: const Icon(Icons.add_shopping_cart, color: Colors.white),
+            tooltip: 'Adicionar a lista de compras',
+            onPressed: _adicionarNaLista,
+          ),
+          if (eDono)
+            IconButton(
+              icon: const Icon(Icons.edit, color: Colors.white),
+              onPressed: _editar,
             ),
-            onPressed: _toggleFavorito,
+          // botao de coracao reage ao FavoritoController (per-user)
+          ListenableBuilder(
+            listenable: _favoritoController,
+            builder: (context, _) {
+              final ehFavorita = _favoritoController.ehFavorita(receita.id);
+              return IconButton(
+                icon: Icon(
+                  ehFavorita ? Icons.favorite : Icons.favorite_border,
+                  color: ehFavorita ? Colors.redAccent : Colors.white,
+                ),
+                onPressed: _toggleFavorito,
+              );
+            },
           ),
         ],
       ),
@@ -155,6 +223,31 @@ class _DetalhesScreenState extends State<DetalhesScreen> {
                         corBadge,
                       ),
                     ],
+                  ),
+                  const SizedBox(height: 12),
+
+                  // Estrela com a media atual; toque no botao da AppBar abre
+                  // o painel de votar. ListenableBuilder mantem em sincronia
+                  // mesmo se o usuario avaliar pelo bottom sheet.
+                  ListenableBuilder(
+                    listenable: _avaliacaoController,
+                    builder: (context, _) {
+                      if (_avaliacaoController.total == 0) {
+                        return const Text(
+                          'Sem avaliacoes ainda',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Cores.textoCinza,
+                          ),
+                        );
+                      }
+                      return BadgeAvaliacao(
+                        media: _avaliacaoController.media,
+                        total: _avaliacaoController.total,
+                        tamanhoIcone: 16,
+                        tamanhoTexto: 13,
+                      );
+                    },
                   ),
                   const SizedBox(height: 24),
 

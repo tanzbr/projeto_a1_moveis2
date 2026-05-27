@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import 'home_screen.dart';
 import 'explorar_screen.dart';
 import 'favoritos_screen.dart';
+import 'tela_minhas_receitas.dart';
+import 'tela_perfil.dart';
 
 class TelaNavegacao extends StatefulWidget {
   const TelaNavegacao({super.key});
@@ -18,6 +20,7 @@ class _TelaNavegacaoState extends State<TelaNavegacao> {
   final _homeKey = GlobalKey<HomeScreenState>();
   final _explorarKey = GlobalKey<ExplorarScreenState>();
   final _favoritosKey = GlobalKey<FavoritosScreenState>();
+  final _minhasKey = GlobalKey<TelaMinhasReceitasState>();
 
   // disparado pela Home ao tocar num chip de categoria → pula p/ Explorar
   void _irParaExplorar({String? categoria}) {
@@ -40,6 +43,9 @@ class _TelaNavegacaoState extends State<TelaNavegacao> {
       case 2:
         _favoritosKey.currentState?.recarregar();
         break;
+      case 3:
+        _minhasKey.currentState?.recarregar();
+        break;
     }
   }
 
@@ -54,6 +60,8 @@ class _TelaNavegacaoState extends State<TelaNavegacao> {
           HomeScreen(key: _homeKey, onExplorar: _irParaExplorar),
           ExplorarScreen(key: _explorarKey),
           FavoritosScreen(key: _favoritosKey),
+          TelaMinhasReceitas(key: _minhasKey),
+          const TelaPerfil(),
         ],
       ),
       bottomNavigationBar: NavigationBar(
@@ -75,6 +83,16 @@ class _TelaNavegacaoState extends State<TelaNavegacao> {
             icon: Icon(Icons.favorite_outline),
             selectedIcon: Icon(Icons.favorite),
             label: 'Favoritos',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.menu_book_outlined),
+            selectedIcon: Icon(Icons.menu_book),
+            label: 'Minhas',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.person_outline),
+            selectedIcon: Icon(Icons.person),
+            label: 'Perfil',
           ),
         ],
       ),

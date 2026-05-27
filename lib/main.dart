@@ -1,20 +1,18 @@
 import 'dart:ui' show PointerDeviceKind;
-import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:sqflite/sqflite.dart' show databaseFactory;
-import 'package:sqflite_common_ffi_web/sqflite_ffi_web.dart';
+import 'services/supabase_service.dart';
 import 'views/tela_navegacao.dart';
 import 'theme/cores.dart';
 
 Future<void> main() async {
-  // necessário antes de chamar plugins async (sqflite) fora do runApp
+  // necessário antes de chamar plugins async (Supabase) fora do runApp
   WidgetsFlutterBinding.ensureInitialized();
 
-  // sqflite no navegador precisa do factory FFI sem web worker
-  if (kIsWeb) {
-    databaseFactory = databaseFactoryFfiWebNoWebWorker;
-  }
+  // carrega .env (declarado como asset no pubspec.yaml) antes do Supabase
+  await dotenv.load(fileName: '.env');
+  await SupabaseService.inicializar();
 
   runApp(
     MaterialApp(

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../models/receita.dart';
 import '../theme/cores.dart';
 import '../theme/espacos.dart';
+import 'badge_avaliacao.dart';
 import 'imagem_receita.dart';
 
 // versão horizontal do card — usada na Home (favoritos) e na Favoritos
@@ -117,6 +118,11 @@ class CardReceitaLista extends StatelessWidget {
               fontSize: 12, color: Cores.textoCinza),
         ),
         const SizedBox(width: 10),
+        BadgeAvaliacao(
+          media: receita.mediaAvaliacao,
+          total: receita.totalAvaliacoes,
+        ),
+        if (receita.totalAvaliacoes > 0) const SizedBox(width: 10),
         if (mostrarCategoria)
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),

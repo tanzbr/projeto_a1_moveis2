@@ -9,7 +9,7 @@ class Ingrediente {
   const Ingrediente({required this.nome, required this.quantidade});
 }
 
-// modelo principal — espelha as colunas da tabela `receitas` no SQLite
+// modelo principal — espelha as colunas da tabela `receitas` no Supabase
 class Receita {
   final int id;
   final String nome;
@@ -22,7 +22,15 @@ class Receita {
   final List<Ingrediente> ingredientes;
   final List<String> modoPreparo;
   final bool destaque;
-  bool favorito; // único campo mutável: alternado pelo botão de favorito
+  // usuario dono da receita (null = seed sem dono, sempre publica)
+  final String? usuarioId;
+  // se true aparece na lista geral; se false so' aparece para o dono
+  bool publica;
+  // mantidos pelo trigger em avaliacoes (ver 09_stats_avaliacoes.sql).
+  // Sao read-only no app: o `toMap` nao os envia para nao sobrescrever
+  // o valor calculado no banco.
+  final double mediaAvaliacao;
+  final int totalAvaliacoes;
 
   Receita({
     required this.id,
@@ -36,54 +44,60 @@ class Receita {
     required this.ingredientes,
     required this.modoPreparo,
     this.destaque = false,
-    this.favorito = false,
+    this.usuarioId,
+    this.publica = false,
+    this.mediaAvaliacao = 0,
+    this.totalAvaliacoes = 0,
   });
 
-  // converte para Map no formato aceito pelo sqflite (insert/update)
-  Map<String, dynamic> toMap() => {
-        'id': id,
-        'nome': nome,
-        'descricao': descricao,
-        'imagemUrl': imagemUrl,
-        'tempoMinutos': tempoMinutos,
-        'porcoes': porcoes,
-        'dificuldade': dificuldade,
-        'categoria': categoria,
-        // listas viram JSON porque SQLite não tem coluna do tipo array
-        'ingredientes': jsonEncode(
-          ingredientes
-              .map((i) => {'nome': i.nome, 'quantidade': i.quantidade})
-              .toList(),
-        ),
-        'modoPreparo': jsonEncode(modoPreparo),
-        // booleanos viram 0/1 (SQLite não tem tipo bool nativo)
-        'destaque': destaque ? 1 : 0,
-        'favorito': favorito ? 1 : 0,
-      };
+  // Map no formato aceito pelo Supabase (Postgres, snake_case).
+  // No insert nao mandamos id (bigserial gera no banco), por isso `incluirId`.
+  Map<String, dynamic> toMap({bool incluirId = false}) {
+    final map = <String, dynamic>{
+      'nome': nome,
+      'descricao': descricao,
+      'imagem_url': imagemUrl,
+      'tempo_minutos': tempoMinutos,
+      'porcoes': porcoes,
+      'dificuldade': dificuldade,
+      'categoria': categoria,
+      'ingredientes': ingredientes
+          .map((i) => {'nome': i.nome, 'quantidade': i.quantidade})
+          .toList(),
+      'modo_preparo': modoPreparo,
+      'destaque': destaque,
+      'publica': publica,
+      'usuario_id': usuarioId,
+    };
+    if (incluirId) map['id'] = id;
+    return map;
+  }
 
-  // reconstrói o objeto a partir da linha do banco
+  // Reconstrói a partir de uma linha vinda do Supabase
   factory Receita.fromMap(Map<String, dynamic> m) {
-    // desfaz o jsonEncode do toMap
-    final ingRaw = jsonDecode(m['ingredientes'] as String) as List;
-    final passosRaw = jsonDecode(m['modoPreparo'] as String) as List;
+    final ingRaw = (m['ingredientes'] as List?) ?? const [];
+    final passosRaw = (m['modo_preparo'] as List?) ?? const [];
     return Receita(
-      id: m['id'] as int,
+      id: (m['id'] as num).toInt(),
       nome: m['nome'] as String,
       descricao: (m['descricao'] ?? '') as String,
-      imagemUrl: (m['imagemUrl'] ?? '') as String,
-      tempoMinutos: m['tempoMinutos'] as int,
-      porcoes: m['porcoes'] as int,
+      imagemUrl: (m['imagem_url'] ?? '') as String,
+      tempoMinutos: (m['tempo_minutos'] as num?)?.toInt() ?? 0,
+      porcoes: (m['porcoes'] as num?)?.toInt() ?? 0,
       dificuldade: m['dificuldade'] as String,
       categoria: m['categoria'] as String,
       ingredientes: ingRaw
           .map((e) => Ingrediente(
-                nome: e['nome'] as String,
+                nome: (e as Map)['nome'] as String,
                 quantidade: e['quantidade'] as String,
               ))
           .toList(),
       modoPreparo: passosRaw.map((e) => e as String).toList(),
-      destaque: (m['destaque'] as int) == 1,
-      favorito: (m['favorito'] as int?) == 1,
+      destaque: (m['destaque'] as bool?) ?? false,
+      usuarioId: m['usuario_id'] as String?,
+      publica: (m['publica'] as bool?) ?? false,
+      mediaAvaliacao: (m['media_avaliacao'] as num?)?.toDouble() ?? 0,
+      totalAvaliacoes: (m['total_avaliacoes'] as num?)?.toInt() ?? 0,
     );
   }
 }

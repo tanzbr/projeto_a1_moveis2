@@ -37,6 +37,32 @@ class ReceitaController extends ChangeNotifier {
     _notificar();
   }
 
+  // Home/Explorar mostram so' publicas — privadas sao' isoladas em "Minhas".
+  Future<void> carregarReceitasPublicas() async {
+    _carregando = true;
+    _notificar();
+
+    final receitas = await _receitaService.obterReceitasPublicas();
+    if (_foiDescartado) return;
+
+    _receitas = receitas;
+    _carregando = false;
+    _notificar();
+  }
+
+  // Tela "Minhas Receitas": so' as criadas pelo usuario logado.
+  Future<void> carregarMinhasReceitas(String usuarioId) async {
+    _carregando = true;
+    _notificar();
+
+    final receitas = await _receitaService.obterMinhasReceitas(usuarioId);
+    if (_foiDescartado) return;
+
+    _receitas = receitas;
+    _carregando = false;
+    _notificar();
+  }
+
   Future<Receita?> buscarReceita(int id) async {
     return await _receitaService.buscarReceita(id);
   }
@@ -54,16 +80,6 @@ class ReceitaController extends ChangeNotifier {
 
   Future<void> excluirReceita(int id) async {
     await _receitaService.excluirReceita(id);
-    await carregarReceitas();
-  }
-
-  Future<void> salvarFavorito(int receitaId) async {
-    await _receitaService.salvarFavorito(receitaId);
-    await carregarReceitas();
-  }
-
-  Future<void> removerFavorito(int receitaId) async {
-    await _receitaService.removerFavorito(receitaId);
     await carregarReceitas();
   }
 }
