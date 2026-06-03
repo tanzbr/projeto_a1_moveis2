@@ -1,8 +1,7 @@
 import 'package:flutter/material.dart';
 
-// paleta única do app — qualquer mudança de cor reflete em todas as telas
 class Cores {
-  Cores._(); // construtor privado: classe usada só p/ acessar as constantes
+  Cores._();
 
   static const primaria = Color.fromARGB(255, 245, 124, 0);
   static const primariaEscura = Color.fromARGB(255, 191, 54, 12);

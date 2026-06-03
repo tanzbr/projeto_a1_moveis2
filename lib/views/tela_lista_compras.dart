@@ -83,7 +83,6 @@ class _TelaListaComprasState extends State<TelaListaCompras> {
           ),
         ],
       ),
-      // heroTag unico para nao colidir com outros FABs do app
       floatingActionButton: FloatingActionButton.extended(
         heroTag: 'fab_lista_compras_add',
         onPressed: _adicionarReceitas,
@@ -170,7 +169,6 @@ class _TelaListaComprasState extends State<TelaListaCompras> {
               fontSize: 15,
               fontWeight: FontWeight.w600,
               color: Cores.textoEscuro,
-              // riscado quando ja foi comprado, padrao de checklist
               decoration: item.comprado ? TextDecoration.lineThrough : null,
             ),
           ),

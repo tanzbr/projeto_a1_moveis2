@@ -7,10 +7,8 @@ import 'views/tela_navegacao.dart';
 import 'theme/cores.dart';
 
 Future<void> main() async {
-  // necessário antes de chamar plugins async (Supabase) fora do runApp
   WidgetsFlutterBinding.ensureInitialized();
 
-  // carrega .env (declarado como asset no pubspec.yaml) antes do Supabase
   await dotenv.load(fileName: '.env');
   await SupabaseService.inicializar();
 
@@ -18,7 +16,6 @@ Future<void> main() async {
     MaterialApp(
       debugShowCheckedModeBanner: false,
       title: 'ReceitasRápidas',
-      // tema único e centralizado — evita repetir estilo em cada tela
       theme: ThemeData(
         useMaterial3: true,
         fontFamily: GoogleFonts.poppins().fontFamily,
@@ -35,7 +32,6 @@ Future<void> main() async {
           ),
         ),
       ),
-      // permite arrastar com o mouse (útil ao rodar no Chrome)
       scrollBehavior: const MaterialScrollBehavior().copyWith(
         dragDevices: {PointerDeviceKind.touch, PointerDeviceKind.mouse},
       ),

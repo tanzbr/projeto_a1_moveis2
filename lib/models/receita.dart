@@ -1,7 +1,6 @@
 import 'dart:convert';
 import 'dart:typed_data';
 
-// par nome/quantidade usado dentro da receita
 class Ingrediente {
   final String nome;
   final String quantidade;
@@ -9,7 +8,6 @@ class Ingrediente {
   const Ingrediente({required this.nome, required this.quantidade});
 }
 
-// modelo principal — espelha as colunas da tabela `receitas` no Supabase
 class Receita {
   final int id;
   final String nome;
@@ -17,18 +15,13 @@ class Receita {
   final String imagemUrl;
   final int tempoMinutos;
   final int porcoes;
-  final String dificuldade; // "Fácil", "Médio", "Difícil"
-  final String categoria;   // "Café da Manhã", "Almoço", "Jantar", "Lanches"
+  final String dificuldade;
+  final String categoria;
   final List<Ingrediente> ingredientes;
   final List<String> modoPreparo;
   final bool destaque;
-  // usuario dono da receita (null = seed sem dono, sempre publica)
   final String? usuarioId;
-  // se true aparece na lista geral; se false so' aparece para o dono
   bool publica;
-  // mantidos pelo trigger em avaliacoes (ver 09_stats_avaliacoes.sql).
-  // Sao read-only no app: o `toMap` nao os envia para nao sobrescrever
-  // o valor calculado no banco.
   final double mediaAvaliacao;
   final int totalAvaliacoes;
 
@@ -50,8 +43,6 @@ class Receita {
     this.totalAvaliacoes = 0,
   });
 
-  // Map no formato aceito pelo Supabase (Postgres, snake_case).
-  // No insert nao mandamos id (bigserial gera no banco), por isso `incluirId`.
   Map<String, dynamic> toMap({bool incluirId = false}) {
     final map = <String, dynamic>{
       'nome': nome,
@@ -73,7 +64,6 @@ class Receita {
     return map;
   }
 
-  // Reconstrói a partir de uma linha vinda do Supabase
   factory Receita.fromMap(Map<String, dynamic> m) {
     final ingRaw = (m['ingredientes'] as List?) ?? const [];
     final passosRaw = (m['modo_preparo'] as List?) ?? const [];
@@ -102,12 +92,9 @@ class Receita {
   }
 }
 
-// helpers para tratar os 3 tipos de imagem que a app aceita:
-// asset (seed), base64 (cadastrada pelo usuário) e URL (fallback)
 bool isBase64Image(String s) => s.startsWith('data:image');
 bool isAssetImage(String s) => s.startsWith('assets/');
 
-// extrai os bytes da string `data:image/jpeg;base64,XXXX...`
 Uint8List? base64ToBytes(String dataUri) {
   final idx = dataUri.indexOf('base64,');
   if (idx < 0) return null;
@@ -118,7 +105,6 @@ Uint8List? base64ToBytes(String dataUri) {
   }
 }
 
-// monta o data URI a partir dos bytes (usado ao salvar a foto escolhida)
 String bytesToDataUri(Uint8List bytes, {String mime = 'image/jpeg'}) {
   return 'data:$mime;base64,${base64Encode(bytes)}';
 }

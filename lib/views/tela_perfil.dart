@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import '../controllers/auth_controller.dart';
 import '../theme/cores.dart';
 import '../theme/espacos.dart';
+import 'favoritos_screen.dart';
+import 'tela_minhas_receitas.dart';
 import 'tela_login.dart';
 
 class TelaPerfil extends StatelessWidget {
@@ -11,6 +13,20 @@ class TelaPerfil extends StatelessWidget {
     await Navigator.push<bool>(
       context,
       MaterialPageRoute(builder: (_) => const TelaLogin()),
+    );
+  }
+
+  Future<void> _abrirFavoritos(BuildContext context) async {
+    await Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => const FavoritosScreen()),
+    );
+  }
+
+  Future<void> _abrirMinhasReceitas(BuildContext context) async {
+    await Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => const TelaMinhasReceitas()),
     );
   }
 
@@ -71,6 +87,18 @@ class TelaPerfil extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: 32),
+                _itemPerfil(
+                  icon: Icons.favorite_outline,
+                  titulo: 'Favoritos',
+                  onTap: () => _abrirFavoritos(context),
+                ),
+                const SizedBox(height: 10),
+                _itemPerfil(
+                  icon: Icons.menu_book_outlined,
+                  titulo: 'Minhas Receitas',
+                  onTap: () => _abrirMinhasReceitas(context),
+                ),
+                const SizedBox(height: 24),
                 OutlinedButton.icon(
                   icon: const Icon(Icons.logout),
                   label: const Text('Sair'),
@@ -80,6 +108,41 @@ class TelaPerfil extends StatelessWidget {
             ),
           );
         },
+      ),
+    );
+  }
+
+  Widget _itemPerfil({
+    required IconData icon,
+    required String titulo,
+    required VoidCallback onTap,
+  }) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(Espacos.raioCard),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        decoration: BoxDecoration(
+          color: Cores.fundoSuave,
+          borderRadius: BorderRadius.circular(Espacos.raioCard),
+        ),
+        child: Row(
+          children: [
+            Icon(icon, color: Cores.primariaEscura),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                titulo,
+                style: const TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w600,
+                  color: Cores.textoEscuro,
+                ),
+              ),
+            ),
+            const Icon(Icons.chevron_right, color: Cores.textoCinza),
+          ],
+        ),
       ),
     );
   }

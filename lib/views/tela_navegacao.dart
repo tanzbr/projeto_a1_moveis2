@@ -1,9 +1,8 @@
-// casca da navegação inferior — controla qual aba está visível
 import 'package:flutter/material.dart';
+import '../controllers/lista_compras_controller.dart';
 import 'home_screen.dart';
 import 'explorar_screen.dart';
-import 'favoritos_screen.dart';
-import 'tela_minhas_receitas.dart';
+import 'tela_lista_compras.dart';
 import 'tela_perfil.dart';
 
 class TelaNavegacao extends StatefulWidget {
@@ -16,21 +15,15 @@ class TelaNavegacao extends StatefulWidget {
 class _TelaNavegacaoState extends State<TelaNavegacao> {
   int _indiceSelecionado = 0;
 
-  // GlobalKeys p/ chamar métodos do State de cada aba (ex.: recarregar)
   final _homeKey = GlobalKey<HomeScreenState>();
   final _explorarKey = GlobalKey<ExplorarScreenState>();
-  final _favoritosKey = GlobalKey<FavoritosScreenState>();
-  final _minhasKey = GlobalKey<TelaMinhasReceitasState>();
 
-  // disparado pela Home ao tocar num chip de categoria → pula p/ Explorar
   void _irParaExplorar({String? categoria}) {
     _explorarKey.currentState?.selecionarCategoria(categoria);
     setState(() => _indiceSelecionado = 1);
     _explorarKey.currentState?.recarregar();
   }
 
-  // ao trocar de aba, recarrega os dados da aba ativa p/ refletir mudanças
-  // feitas em outra (ex.: favoritar um item na Explorar e voltar p/ Home)
   void _aoTrocarAba(int novo) {
     setState(() => _indiceSelecionado = novo);
     switch (novo) {
@@ -41,10 +34,7 @@ class _TelaNavegacaoState extends State<TelaNavegacao> {
         _explorarKey.currentState?.recarregar();
         break;
       case 2:
-        _favoritosKey.currentState?.recarregar();
-        break;
-      case 3:
-        _minhasKey.currentState?.recarregar();
+        ListaComprasController.instance.recarregar();
         break;
     }
   }
@@ -52,15 +42,12 @@ class _TelaNavegacaoState extends State<TelaNavegacao> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      // IndexedStack mantém as 3 telas vivas: preserva scroll/filtros
-      // ao trocar de aba (ao contrário de só recriar o widget)
       body: IndexedStack(
         index: _indiceSelecionado,
         children: [
           HomeScreen(key: _homeKey, onExplorar: _irParaExplorar),
           ExplorarScreen(key: _explorarKey),
-          FavoritosScreen(key: _favoritosKey),
-          TelaMinhasReceitas(key: _minhasKey),
+          const TelaListaCompras(),
           const TelaPerfil(),
         ],
       ),
@@ -80,14 +67,9 @@ class _TelaNavegacaoState extends State<TelaNavegacao> {
             label: 'Explorar',
           ),
           NavigationDestination(
-            icon: Icon(Icons.favorite_outline),
-            selectedIcon: Icon(Icons.favorite),
-            label: 'Favoritos',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.menu_book_outlined),
-            selectedIcon: Icon(Icons.menu_book),
-            label: 'Minhas',
+            icon: Icon(Icons.shopping_cart_outlined),
+            selectedIcon: Icon(Icons.shopping_cart),
+            label: 'Compras',
           ),
           NavigationDestination(
             icon: Icon(Icons.person_outline),

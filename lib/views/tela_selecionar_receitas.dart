@@ -4,8 +4,6 @@ import '../theme/cores.dart';
 import '../theme/espacos.dart';
 import '../widgets/imagem_receita.dart';
 
-// Tela com checkboxes para escolher quais receitas vao virar itens na lista
-// de compras. Devolve a List<Receita> selecionada via Navigator.pop.
 class TelaSelecionarReceitas extends StatefulWidget {
   const TelaSelecionarReceitas({super.key});
 
@@ -15,13 +13,12 @@ class TelaSelecionarReceitas extends StatefulWidget {
 
 class _TelaSelecionarReceitasState extends State<TelaSelecionarReceitas> {
   final ReceitaController _controller = ReceitaController();
-  // Set para alternar selecao em O(1) e nao depender da ordem
   final Set<int> _selecionados = {};
 
   @override
   void initState() {
     super.initState();
-    _controller.carregarReceitas(); // tudo que o RLS deixa eu ver
+    _controller.carregarReceitas();
   }
 
   @override

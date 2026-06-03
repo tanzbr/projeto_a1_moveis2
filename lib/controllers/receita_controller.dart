@@ -37,7 +37,6 @@ class ReceitaController extends ChangeNotifier {
     _notificar();
   }
 
-  // Home/Explorar mostram so' publicas — privadas sao' isoladas em "Minhas".
   Future<void> carregarReceitasPublicas() async {
     _carregando = true;
     _notificar();
@@ -50,7 +49,6 @@ class ReceitaController extends ChangeNotifier {
     _notificar();
   }
 
-  // Tela "Minhas Receitas": so' as criadas pelo usuario logado.
   Future<void> carregarMinhasReceitas(String usuarioId) async {
     _carregando = true;
     _notificar();

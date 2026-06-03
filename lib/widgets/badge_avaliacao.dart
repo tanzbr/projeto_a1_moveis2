@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
 import '../theme/cores.dart';
 
-// Selo compacto reutilizado nos cards e na DetalhesScreen.
-// Sai do layout quando ainda nao ha nenhuma avaliacao.
 class BadgeAvaliacao extends StatelessWidget {
   final double media;
   final int total;

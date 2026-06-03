@@ -1,6 +1,3 @@
-// resumo agregado das avaliacoes de uma receita.
-// O service calcula `media` e `total` a partir das linhas da tabela;
-// `notaUsuario` vem null quando o usuario atual ainda nao avaliou.
 class ResumoAvaliacao {
   final int receitaId;
   final double media;

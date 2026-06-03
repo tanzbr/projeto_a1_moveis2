@@ -18,7 +18,6 @@ class CarrosselReceita extends StatefulWidget {
 }
 
 class _CarrosselReceitaState extends State<CarrosselReceita> {
-  // viewportFraction < 1 deixa o card vizinho aparecer "espiando" na lateral
   final PageController _controller = PageController(viewportFraction: 0.8);
 
   @override
@@ -31,7 +30,6 @@ class _CarrosselReceitaState extends State<CarrosselReceita> {
   Widget build(BuildContext context) {
     return SizedBox(
       height: 200,
-      // PageView.builder constrói os cards sob demanda (lazy)
       child: PageView.builder(
         controller: _controller,
         padEnds: false,
@@ -41,7 +39,6 @@ class _CarrosselReceitaState extends State<CarrosselReceita> {
           return GestureDetector(
             onTap: () => widget.onReceitaTap(receita),
             child: Container(
-              // primeiro card precisa de margem maior p/ alinhar com o resto da tela
               margin: EdgeInsets.only(left: index == 0 ? 16 : 8, right: 8),
               decoration: BoxDecoration(
                 color: Cores.primaria,
@@ -53,7 +50,6 @@ class _CarrosselReceitaState extends State<CarrosselReceita> {
                       offset: Offset(0, 3)),
                 ],
               ),
-              // Stack empilha imagem + degradê + texto p/ legibilidade
               child: Stack(
                 children: [
                   Positioned.fill(
@@ -63,7 +59,6 @@ class _CarrosselReceitaState extends State<CarrosselReceita> {
                       tamanhoIcone: 60,
                     ),
                   ),
-                  // degradê escuro embaixo p/ o texto branco contrastar
                   Container(
                     decoration: BoxDecoration(
                       borderRadius: BorderRadius.circular(16),

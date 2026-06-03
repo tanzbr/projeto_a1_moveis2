@@ -45,7 +45,6 @@ class FavoritosScreenState extends State<FavoritosScreen> {
   Future<void> _desfavoritar(Receita receita) async {
     final autenticado = await exigirLogin(context);
     if (!mounted || !autenticado) {
-      // recarrega para "reverter" o swipe quando o usuario cancelou o login
       await _controller.recarregar();
       return;
     }
@@ -109,7 +108,6 @@ class FavoritosScreenState extends State<FavoritosScreen> {
                         },
                       ),
               ),
-              // rodapé com contagem total (singular/plural)
               Container(
                 width: double.infinity,
                 padding: const EdgeInsets.symmetric(
@@ -134,10 +132,9 @@ class FavoritosScreenState extends State<FavoritosScreen> {
     );
   }
 
-  // Dismissible permite remover o favorito arrastando o card p/ a esquerda
   Widget _cardFavorito(Receita receita) {
     return Dismissible(
-      key: ValueKey('fav-${receita.id}'), // chave estável p/ o Flutter
+      key: ValueKey('fav-${receita.id}'),
       direction: DismissDirection.endToStart,
       background: Container(
         alignment: Alignment.centerRight,

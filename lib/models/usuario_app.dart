@@ -1,4 +1,3 @@
-// modelo simples do usuario logado, alimentado pelo AuthService
 class UsuarioApp {
   final String id;
   final String email;

@@ -24,7 +24,6 @@ class _TelaCadastroUsuarioState extends State<TelaCadastroUsuario> {
     super.dispose();
   }
 
-  // validacao simples no estilo do projeto (sem pacote de form)
   String? _validar(String email, String senha, String confirma) {
     if (email.isEmpty || senha.isEmpty || confirma.isEmpty) {
       return 'Preencha todos os campos.';

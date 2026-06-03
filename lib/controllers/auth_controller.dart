@@ -1,16 +1,40 @@
 import 'dart:async';
 import 'package:flutter/foundation.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/usuario_app.dart';
 import '../services/auth_service.dart';
 
-// Controller global de autenticacao. Singleton: a sessao precisa ser
-// compartilhada entre todas as telas (FAB nova receita, favoritar, perfil...).
+const _erroCredenciaisInvalidas = 'Email ou senha incorretos.';
+const _erroAutenticacaoGenerico =
+    'Nao foi possivel autenticar. Tente novamente.';
+
+String mensagemErroAutenticacao(Object erro) {
+  if (erro is AuthException) {
+    final codigo = erro.code?.toLowerCase();
+    final mensagem = erro.message.toLowerCase();
+
+    if (codigo == 'invalid_credentials' ||
+        mensagem.contains('invalid login credentials')) {
+      return _erroCredenciaisInvalidas;
+    }
+
+    return _erroAutenticacaoGenerico;
+  }
+
+  final texto = erro.toString().toLowerCase();
+  if (texto.contains('invalid_credentials') ||
+      texto.contains('invalid login credentials')) {
+    return _erroCredenciaisInvalidas;
+  }
+
+  return _erroAutenticacaoGenerico;
+}
+
 class AuthController extends ChangeNotifier {
   static final AuthController instance = AuthController._();
 
   AuthController._() {
     _usuario = _service.usuarioAtual;
-    // mantem o controller sincronizado com login/logout vindos do Supabase
     _inscricao = _service.mudancasDeSessao.listen((u) {
       _usuario = u;
       notifyListeners();
@@ -68,12 +92,8 @@ class AuthController extends ChangeNotifier {
     notifyListeners();
   }
 
-  // mensagens cruas do Supabase nao sao amigaveis; mostramos a string direta
-  // mas damos um fallback generico quando nao da pra extrair nada util
   String _mensagemErro(Object e) {
-    final texto = e.toString();
-    if (texto.isEmpty) return 'Falha na autenticacao.';
-    return texto.replaceFirst('Exception: ', '');
+    return mensagemErroAutenticacao(e);
   }
 
   @override

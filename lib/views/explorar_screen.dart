@@ -15,11 +15,9 @@ class ExplorarScreen extends StatefulWidget {
 }
 
 class ExplorarScreenState extends State<ExplorarScreen> {
-  // controller do TextField — precisa ser disposto p/ não vazar memória
   final _buscaController = TextEditingController();
   final ReceitaController _controller = ReceitaController();
 
-  // valores possíveis dos chips de categoria (inclui "Todos" = sem filtro)
   final List<String> _categorias = [
     'Todos',
     'Café da Manhã',
@@ -27,7 +25,6 @@ class ExplorarScreenState extends State<ExplorarScreen> {
     'Jantar',
     'Lanches',
   ];
-  // estado dos 3 filtros aplicados sobre a lista
   String _categoriaAtual = 'Todos';
   String _filtroTempo = 'Todos';
   String _filtroDificuldade = 'Todos';
@@ -40,14 +37,13 @@ class ExplorarScreenState extends State<ExplorarScreen> {
 
   @override
   void dispose() {
-    _buscaController.dispose(); // libera o controller
+    _buscaController.dispose();
     _controller.dispose();
     super.dispose();
   }
 
   Future<void> recarregar() => _controller.carregarReceitasPublicas();
 
-  // chamado pela TelaNavegacao quando o usuário escolhe categoria na Home
   void selecionarCategoria(String? cat) {
     if (!mounted) return;
     setState(() {
@@ -57,18 +53,14 @@ class ExplorarScreenState extends State<ExplorarScreen> {
     });
   }
 
-  // getter — recalcula a lista filtrada a cada build
-  // (o conjunto é pequeno, então filtrar em memória é suficiente)
   List<Receita> get _receitasFiltradas {
     final busca = _buscaController.text.toLowerCase().trim();
 
     return _controller.receitas.where((r) {
-      // filtro 1: categoria selecionada nos chips
       if (_categoriaAtual != 'Todos' && r.categoria != _categoriaAtual) {
         return false;
       }
 
-      // filtro 2: texto da busca casa com nome OU com algum ingrediente
       if (busca.isNotEmpty) {
         final nomeMatch = r.nome.toLowerCase().contains(busca);
         final ingredienteMatch = r.ingredientes.any(
@@ -77,12 +69,10 @@ class ExplorarScreenState extends State<ExplorarScreen> {
         if (!nomeMatch && !ingredienteMatch) return false;
       }
 
-      // filtro 3: tempo máximo de preparo
       if (_filtroTempo == 'Até 10 min' && r.tempoMinutos > 10) return false;
       if (_filtroTempo == 'Até 20 min' && r.tempoMinutos > 20) return false;
       if (_filtroTempo == 'Até 30 min' && r.tempoMinutos > 30) return false;
 
-      // filtro 4: dificuldade exata
       if (_filtroDificuldade != 'Todos' &&
           r.dificuldade != _filtroDificuldade) {
         return false;
@@ -128,7 +118,6 @@ class ExplorarScreenState extends State<ExplorarScreen> {
                 child: CampoBusca(
                   controller: _buscaController,
                   hint: 'Buscar por nome ou ingrediente...',
-                  // setState vazio só p/ refazer o build com o filtro atualizado
                   onChanged: (_) => setState(() {}),
                 ),
               ),

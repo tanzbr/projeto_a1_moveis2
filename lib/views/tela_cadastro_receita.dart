@@ -10,7 +10,6 @@ import '../theme/espacos.dart';
 import '../widgets/imagem_receita.dart';
 
 class TelaCadastroReceita extends StatefulWidget {
-  // se vier preenchido, a tela funciona em modo edição (mesmo formulário)
   final Receita? receita;
   const TelaCadastroReceita({super.key, this.receita});
 
@@ -21,30 +20,25 @@ class TelaCadastroReceita extends StatefulWidget {
 class _TelaCadastroReceitaState extends State<TelaCadastroReceita> {
   final ReceitaController _controller = ReceitaController();
   final ImagemStorageService _storageService = ImagemStorageService();
-  // um controller por campo de texto (precisam de dispose no fim)
   final _nomeCtrl = TextEditingController();
   final _descCtrl = TextEditingController();
   final _tempoCtrl = TextEditingController();
   final _porcoesCtrl = TextEditingController();
-  final _ingredientesCtrl = TextEditingController();
   final _preparoCtrl = TextEditingController();
+  final List<_IngredienteCampo> _camposIngredientes = [];
 
   String _dificuldade = 'Fácil';
   String _categoria = 'Almoço';
-  // imagem pode vir de 3 fontes: galeria (bytes/base64) ou asset/URL existente
   Uint8List? _imagemBytes;
   String? _imagemDataUri;
   String? _imagemAsset;
-  // URL original ao abrir o form em modo edicao; usada p/ apagar do Storage
-  // quando o usuario substitui por uma nova imagem
   String? _imagemUrlOriginal;
   bool _destaque = false;
-  bool _publica = false; // se true, aparece na Home/Explorar de todos
-  bool _salvando = false; // trava o botão p/ evitar duplo clique
+  bool _publica = false;
+  bool _salvando = false;
 
   bool get _editando => widget.receita != null;
 
-  // monta a string que vai p/ o widget de pré-visualização da imagem
   String _urlPreview() {
     if (_imagemBytes != null) return bytesToDataUri(_imagemBytes!);
     if (_imagemDataUri != null) return _imagemDataUri!;
@@ -56,16 +50,16 @@ class _TelaCadastroReceitaState extends State<TelaCadastroReceita> {
   void initState() {
     super.initState();
     final r = widget.receita;
-    // pré-preenche os campos quando estamos editando
     if (r != null) {
       _nomeCtrl.text = r.nome;
       _descCtrl.text = r.descricao;
       _tempoCtrl.text = r.tempoMinutos.toString();
       _porcoesCtrl.text = r.porcoes.toString();
-      // ingredientes viram texto livre no formato "nome|quantidade" por linha
-      _ingredientesCtrl.text = r.ingredientes
-          .map((i) => '${i.nome}|${i.quantidade}')
-          .join('\n');
+      _camposIngredientes.addAll(
+        r.ingredientes.map(
+          (i) => _IngredienteCampo(nome: i.nome, quantidade: i.quantidade),
+        ),
+      );
       _preparoCtrl.text = r.modoPreparo.join('\n');
       _dificuldade = r.dificuldade;
       _categoria = r.categoria;
@@ -73,15 +67,15 @@ class _TelaCadastroReceitaState extends State<TelaCadastroReceita> {
       _publica = r.publica;
       _imagemUrlOriginal = r.imagemUrl.isEmpty ? null : r.imagemUrl;
       if (r.imagemUrl.isNotEmpty) {
-        // base64 antigo segue funcionando para edicao; nao vira novo upload.
-        // Asset do seed e URL do Storage caem no mesmo slot _imagemAsset
-        // — sao apenas strings renderizadas pelo widget ImagemReceita.
         if (isBase64Image(r.imagemUrl)) {
           _imagemDataUri = r.imagemUrl;
         } else {
           _imagemAsset = r.imagemUrl;
         }
       }
+    }
+    if (_camposIngredientes.isEmpty) {
+      _camposIngredientes.add(_IngredienteCampo());
     }
   }
 
@@ -91,40 +85,76 @@ class _TelaCadastroReceitaState extends State<TelaCadastroReceita> {
     _descCtrl.dispose();
     _tempoCtrl.dispose();
     _porcoesCtrl.dispose();
-    _ingredientesCtrl.dispose();
     _preparoCtrl.dispose();
+    for (final campo in _camposIngredientes) {
+      campo.dispose();
+    }
     _controller.dispose();
     super.dispose();
   }
 
-  // Foto escolhida pela galeria fica em memoria; o upload pro Supabase
-  // Storage acontece dentro de _salvar (gera a URL publica).
-  Future<void> _escolherImagem() async {
+  Future<void> _escolherImagem(ImageSource source) async {
     final picker = ImagePicker();
-    // limita largura/qualidade p/ economizar banda no upload
     final xfile = await picker.pickImage(
-      source: ImageSource.gallery,
+      source: source,
       maxWidth: 1024,
       imageQuality: 80,
     );
-    if (xfile == null) return; // usuário cancelou
+    if (xfile == null) return;
     final bytes = await xfile.readAsBytes();
     setState(() {
       _imagemBytes = bytes;
-      _imagemDataUri = null; // novo upload sobrescreve qualquer base64 antigo
-      _imagemAsset = null;   // troca de imagem invalida a URL/asset anterior
+      _imagemDataUri = null;
+      _imagemAsset = null;
+    });
+  }
+
+  Future<void> _mostrarOpcoesImagem() async {
+    final source = await showModalBottomSheet<ImageSource>(
+      context: context,
+      builder: (ctx) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: const Icon(Icons.camera_alt),
+              title: const Text('Tirar foto'),
+              onTap: () => Navigator.pop(ctx, ImageSource.camera),
+            ),
+            ListTile(
+              leading: const Icon(Icons.photo_library),
+              title: const Text('Escolher da galeria'),
+              onTap: () => Navigator.pop(ctx, ImageSource.gallery),
+            ),
+          ],
+        ),
+      ),
+    );
+    if (source == null) return;
+    await _escolherImagem(source);
+  }
+
+  void _adicionarIngrediente() {
+    setState(() {
+      _camposIngredientes.add(_IngredienteCampo());
+    });
+  }
+
+  void _removerIngrediente(int i) {
+    if (_camposIngredientes.length <= 1) return;
+    setState(() {
+      final campo = _camposIngredientes.removeAt(i);
+      campo.dispose();
     });
   }
 
   Future<void> _salvar() async {
-    if (_salvando) return; // proteção contra duplo toque no botão
+    if (_salvando) return;
     final nome = _nomeCtrl.text.trim();
     final desc = _descCtrl.text.trim();
-    // tryParse devolve null se o usuário digitou algo inválido → vira 0
     final tempo = int.tryParse(_tempoCtrl.text.trim()) ?? 0;
     final porcoes = int.tryParse(_porcoesCtrl.text.trim()) ?? 0;
 
-    // validação manual simples — projeto não usa pacote de form
     if (nome.isEmpty || tempo <= 0 || porcoes <= 0) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Preencha nome, tempo e porções.')),
@@ -132,21 +162,18 @@ class _TelaCadastroReceitaState extends State<TelaCadastroReceita> {
       return;
     }
 
-    // converte texto livre em lista de Ingrediente (formato "nome|qtd")
-    final ingredientes = _ingredientesCtrl.text
-        .split('\n')
-        .map((l) => l.trim())
-        .where((l) => l.isNotEmpty)
-        .map((l) {
-          final partes = l.split('|');
+    final ingredientes = _camposIngredientes
+        .map((campo) {
+          final nomeIngrediente = campo.nomeCtrl.text.trim();
+          if (nomeIngrediente.isEmpty) return null;
           return Ingrediente(
-            nome: partes[0].trim(),
-            quantidade: partes.length > 1 ? partes[1].trim() : '',
+            nome: nomeIngrediente,
+            quantidade: campo.quantidadeCtrl.text.trim(),
           );
         })
+        .whereType<Ingrediente>()
         .toList();
 
-    // cada linha do textarea vira um passo do modo de preparo
     final preparo = _preparoCtrl.text
         .split('\n')
         .map((l) => l.trim())
@@ -163,13 +190,10 @@ class _TelaCadastroReceitaState extends State<TelaCadastroReceita> {
     }
 
     setState(() => _salvando = true);
-    // dono: ao editar, preserva o original; ao criar, usa o usuario logado
     final usuarioId = _editando
         ? widget.receita!.usuarioId
         : AuthController.instance.usuario?.id;
 
-    // resolve a imagem: novos bytes -> upload no Storage e usa a URL publica.
-    // Sem bytes novos, mantem a string ja existente (asset, URL antiga, etc.).
     String imagemUrl;
     final donoUploadId = AuthController.instance.usuario?.id;
     if (_imagemBytes != null && donoUploadId != null) {
@@ -177,7 +201,6 @@ class _TelaCadastroReceitaState extends State<TelaCadastroReceita> {
         donoUploadId,
         _imagemBytes!,
       );
-      // se editando e tinha uma imagem antiga no Storage, remove (best-effort)
       final antiga = _imagemUrlOriginal;
       if (_editando &&
           antiga != null &&
@@ -190,7 +213,6 @@ class _TelaCadastroReceitaState extends State<TelaCadastroReceita> {
     }
 
     final receita = Receita(
-      // id 0 só serve p/ satisfazer o construtor — é descartado no insert
       id: _editando ? widget.receita!.id : 0,
       nome: nome,
       descricao: desc,
@@ -206,7 +228,6 @@ class _TelaCadastroReceitaState extends State<TelaCadastroReceita> {
       publica: _publica,
     );
 
-    // mesmo formulário cobre INSERT e UPDATE conforme o modo
     final int idResultado;
     if (_editando) {
       await _controller.atualizarReceita(receita);
@@ -215,11 +236,9 @@ class _TelaCadastroReceitaState extends State<TelaCadastroReceita> {
       idResultado = await _controller.adicionarReceita(receita);
     }
     if (!mounted) return;
-    // devolve o id p/ a tela anterior saber qual receita foi salva
     Navigator.pop(context, idResultado);
   }
 
-  // confirma com diálogo antes de remover do banco (ação irreversível)
   Future<void> _excluir() async {
     final confirmar = await showDialog<bool>(
       context: context,
@@ -244,8 +263,20 @@ class _TelaCadastroReceitaState extends State<TelaCadastroReceita> {
     if (confirmar != true || !mounted) return;
     await _controller.excluirReceita(widget.receita!.id);
     if (!mounted) return;
-    // -1 sinaliza p/ a Detalhes que a receita não existe mais
     Navigator.pop(context, -1);
+  }
+
+  Widget _tituloSecao(String texto) {
+    return Padding(
+      padding: const EdgeInsets.only(top: 8, bottom: 10),
+      child: Text(
+        texto,
+        style: Theme.of(context).textTheme.titleMedium?.copyWith(
+          color: Cores.textoEscuro,
+          fontWeight: FontWeight.bold,
+        ),
+      ),
+    );
   }
 
   @override
@@ -259,9 +290,9 @@ class _TelaCadastroReceitaState extends State<TelaCadastroReceita> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            // área inteira da imagem é clicável p/ abrir a galeria
+            _tituloSecao('Dados principais'),
             GestureDetector(
-              onTap: _escolherImagem,
+              onTap: _mostrarOpcoesImagem,
               child: SizedBox(
                 height: 180,
                 width: double.infinity,
@@ -284,7 +315,8 @@ class _TelaCadastroReceitaState extends State<TelaCadastroReceita> {
               decoration: const InputDecoration(labelText: 'Descrição'),
               maxLines: 2,
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 20),
+            _tituloSecao('Detalhes'),
             Row(
               children: [
                 Expanded(
@@ -327,16 +359,56 @@ class _TelaCadastroReceitaState extends State<TelaCadastroReceita> {
               ].map((v) => DropdownMenuItem(value: v, child: Text(v))).toList(),
               onChanged: (v) => setState(() => _categoria = v!),
             ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: _ingredientesCtrl,
-              maxLines: 5,
-              decoration: const InputDecoration(
-                labelText: 'Ingredientes (um por linha: nome | quantidade)',
-                hintText: 'Farinha|200g\nOvo|2 unidades',
-              ),
+            const SizedBox(height: 20),
+            _tituloSecao('Ingredientes'),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                for (var i = 0; i < _camposIngredientes.length; i++) ...[
+                  Row(
+                    children: [
+                      Expanded(
+                        flex: 3,
+                        child: TextField(
+                          controller: _camposIngredientes[i].nomeCtrl,
+                          decoration: const InputDecoration(
+                            labelText: 'Ingrediente',
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        flex: 2,
+                        child: TextField(
+                          controller: _camposIngredientes[i].quantidadeCtrl,
+                          decoration: const InputDecoration(
+                            labelText: 'Quantidade',
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 4),
+                      IconButton(
+                        onPressed: _camposIngredientes.length == 1
+                            ? null
+                            : () => _removerIngrediente(i),
+                        icon: const Icon(Icons.close),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                ],
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: TextButton.icon(
+                    onPressed: _adicionarIngrediente,
+                    icon: const Icon(Icons.add),
+                    label: const Text('Adicionar ingrediente'),
+                  ),
+                ),
+              ],
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 20),
+            _tituloSecao('Modo de preparo'),
             TextField(
               controller: _preparoCtrl,
               maxLines: 6,
@@ -344,7 +416,8 @@ class _TelaCadastroReceitaState extends State<TelaCadastroReceita> {
                 labelText: 'Modo de preparo (um passo por linha)',
               ),
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: 20),
+            _tituloSecao('Publicação'),
             Container(
               decoration: BoxDecoration(
                 color: Cores.fundoSuave,
@@ -419,5 +492,19 @@ class _TelaCadastroReceitaState extends State<TelaCadastroReceita> {
         ),
       ),
     );
+  }
+}
+
+class _IngredienteCampo {
+  final TextEditingController nomeCtrl;
+  final TextEditingController quantidadeCtrl;
+
+  _IngredienteCampo({String nome = '', String quantidade = ''})
+    : nomeCtrl = TextEditingController(text: nome),
+      quantidadeCtrl = TextEditingController(text: quantidade);
+
+  void dispose() {
+    nomeCtrl.dispose();
+    quantidadeCtrl.dispose();
   }
 }

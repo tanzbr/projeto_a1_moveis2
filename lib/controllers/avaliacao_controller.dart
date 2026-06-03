@@ -3,8 +3,6 @@ import '../models/avaliacao_receita.dart';
 import '../services/avaliacao_service.dart';
 import 'auth_controller.dart';
 
-// Controller dedicado a uma receita aberta na DetalhesScreen.
-// Mantem o resumo (media/total/notaUsuario) e dispara recarga apos avaliar.
 class AvaliacaoController extends ChangeNotifier {
   final AvaliacaoService _service = AvaliacaoService();
 
@@ -40,7 +38,6 @@ class AvaliacaoController extends ChangeNotifier {
     _notificar();
   }
 
-  // Retorna false se nao havia usuario logado, true se salvou.
   Future<bool> avaliar(int receitaId, int nota) async {
     final usuarioId = AuthController.instance.usuario?.id;
     if (usuarioId == null) return false;

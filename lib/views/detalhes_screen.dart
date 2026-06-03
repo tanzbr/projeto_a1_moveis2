@@ -42,7 +42,6 @@ class _DetalhesScreenState extends State<DetalhesScreen> {
     super.dispose();
   }
 
-  // alterna o favorito do usuario logado na tabela `favoritos`
   Future<void> _toggleFavorito() async {
     final autenticado = await exigirLogin(context);
     if (!mounted || !autenticado) return;
@@ -54,7 +53,6 @@ class _DetalhesScreenState extends State<DetalhesScreen> {
     }
   }
 
-  // abre painel inferior com o widget de estrelas para avaliar
   void _abrirAvaliacao() {
     showModalBottomSheet(
       context: context,
@@ -69,7 +67,6 @@ class _DetalhesScreenState extends State<DetalhesScreen> {
     );
   }
 
-  // adiciona todos os ingredientes desta receita na lista de compras
   Future<void> _adicionarNaLista() async {
     final messenger = ScaffoldMessenger.of(context);
     final autenticado = await exigirLogin(context);
@@ -81,7 +78,6 @@ class _DetalhesScreenState extends State<DetalhesScreen> {
     );
   }
 
-  // abre a tela de cadastro em modo edição reaproveitando o mesmo formulário
   Future<void> _editar() async {
     final autenticado = await exigirLogin(context);
     if (!mounted || !autenticado) return;
@@ -90,12 +86,10 @@ class _DetalhesScreenState extends State<DetalhesScreen> {
       MaterialPageRoute(builder: (_) => TelaCadastroReceita(receita: _receita)),
     );
     if (resultado == null || !mounted) return;
-    // -1 é o código que a tela de cadastro devolve quando o usuário excluiu
     if (resultado == -1) {
       Navigator.pop(context);
       return;
     }
-    // recarrega do banco p/ refletir os campos editados
     final atualizada = await _controller.buscarReceita(resultado);
     if (atualizada == null || !mounted) return;
     setState(() => _receita = atualizada);
@@ -107,7 +101,6 @@ class _DetalhesScreenState extends State<DetalhesScreen> {
     const corPrincipal = Cores.primariaEscura;
     const corBadge = Cores.primariaClara;
 
-    // botao de editar so' aparece para o dono da receita
     final usuarioAtual = AuthController.instance.usuario;
     final eDono = usuarioAtual != null &&
         receita.usuarioId != null &&
@@ -117,7 +110,6 @@ class _DetalhesScreenState extends State<DetalhesScreen> {
       appBar: AppBar(
         title: Text(receita.nome),
         actions: [
-          // botao de avaliar (icone reflete se o usuario ja votou)
           ListenableBuilder(
             listenable: _avaliacaoController,
             builder: (context, _) {
@@ -142,7 +134,6 @@ class _DetalhesScreenState extends State<DetalhesScreen> {
               icon: const Icon(Icons.edit, color: Colors.white),
               onPressed: _editar,
             ),
-          // botao de coracao reage ao FavoritoController (per-user)
           ListenableBuilder(
             listenable: _favoritoController,
             builder: (context, _) {
@@ -162,7 +153,6 @@ class _DetalhesScreenState extends State<DetalhesScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // heroTag idêntico ao do card faz a imagem "voar" entre as telas
             ImagemReceita(
               url: receita.imagemUrl,
               largura: double.infinity,
@@ -193,7 +183,6 @@ class _DetalhesScreenState extends State<DetalhesScreen> {
                     ),
                   ),
                   const SizedBox(height: 16),
-                  // Badges
                   Wrap(
                     spacing: 8,
                     runSpacing: 8,
@@ -226,9 +215,6 @@ class _DetalhesScreenState extends State<DetalhesScreen> {
                   ),
                   const SizedBox(height: 12),
 
-                  // Estrela com a media atual; toque no botao da AppBar abre
-                  // o painel de votar. ListenableBuilder mantem em sincronia
-                  // mesmo se o usuario avaliar pelo bottom sheet.
                   ListenableBuilder(
                     listenable: _avaliacaoController,
                     builder: (context, _) {
@@ -251,7 +237,6 @@ class _DetalhesScreenState extends State<DetalhesScreen> {
                   ),
                   const SizedBox(height: 24),
 
-                  // Ingredientes
                   const Text(
                     'Ingredientes',
                     style: TextStyle(
@@ -291,7 +276,6 @@ class _DetalhesScreenState extends State<DetalhesScreen> {
                   ),
                   const SizedBox(height: 24),
 
-                  // Modo de Preparo
                   const Text(
                     'Modo de Preparo',
                     style: TextStyle(
@@ -301,7 +285,6 @@ class _DetalhesScreenState extends State<DetalhesScreen> {
                     ),
                   ),
                   const SizedBox(height: 8),
-                  // asMap().entries dá acesso ao índice p/ numerar os passos
                   ...receita.modoPreparo.asMap().entries.map(
                     (entry) => Padding(
                       padding: const EdgeInsets.symmetric(vertical: 6),

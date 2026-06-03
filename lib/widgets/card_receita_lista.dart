@@ -5,14 +5,12 @@ import '../theme/espacos.dart';
 import 'badge_avaliacao.dart';
 import 'imagem_receita.dart';
 
-// versão horizontal do card — usada na Home (favoritos) e na Favoritos
-// parâmetros opcionais permitem ajustar o conteúdo sem criar widgets novos
 class CardReceitaLista extends StatelessWidget {
   final Receita receita;
   final VoidCallback onTap;
-  final String? rodape; // texto extra opcional embaixo
-  final bool mostrarCategoria; // se true, mostra chip da categoria
-  final Widget? acaoDireita; // ícone customizado à direita (ex.: coração)
+  final String? rodape;
+  final bool mostrarCategoria;
+  final Widget? acaoDireita;
 
   const CardReceitaLista({
     super.key,
@@ -76,7 +74,6 @@ class CardReceitaLista extends StatelessWidget {
                 ),
               ),
             ),
-            // se nenhum ícone for passado, mostra a setinha padrão
             Padding(
               padding: const EdgeInsets.only(right: 12),
               child: acaoDireita ??

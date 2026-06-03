@@ -5,9 +5,6 @@ import '../theme/cores.dart';
 import '../theme/espacos.dart';
 import '../views/auth_gate.dart';
 
-// 5 estrelas clicaveis + texto com a media e o total.
-// Pinta filled ate a nota do usuario (ou nenhuma se ele ainda nao avaliou);
-// se nao houver login, oferece atalho para entrar antes de avaliar.
 class AvaliacaoReceitaWidget extends StatelessWidget {
   final int receitaId;
   final AvaliacaoController controller;
@@ -38,7 +35,6 @@ class AvaliacaoReceitaWidget extends StatelessWidget {
     return ListenableBuilder(
       listenable: Listenable.merge([controller, AuthController.instance]),
       builder: (context, _) {
-        // referencia visual: nota do usuario se houver, senao a media arredondada
         final notaReferencia = controller.notaUsuario ?? controller.media.round();
 
         return Container(
@@ -91,7 +87,6 @@ class AvaliacaoReceitaWidget extends StatelessWidget {
                       ),
                     ),
                   ),
-                  // botao discreto para tirar a nota dada
                   if (controller.notaUsuario != null)
                     TextButton(
                       onPressed: () => controller.remover(receitaId),

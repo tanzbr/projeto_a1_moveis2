@@ -5,7 +5,6 @@ import '../theme/espacos.dart';
 import 'badge_avaliacao.dart';
 import 'imagem_receita.dart';
 
-// card vertical usado no GridView da Explorar
 class CardReceita extends StatelessWidget {
   final Receita receita;
   final VoidCallback onTap;
@@ -14,7 +13,6 @@ class CardReceita extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // InkWell garante o efeito ripple ao tocar (em vez de Container puro)
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(Espacos.raioCard),
@@ -30,7 +28,6 @@ class CardReceita extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // mesmo tag da DetalhesScreen → animação Hero da imagem
             Hero(
               tag: 'receita-imagem-${receita.id}',
               child: ClipRRect(

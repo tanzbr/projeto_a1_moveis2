@@ -4,8 +4,6 @@ import '../models/receita.dart';
 import '../services/lista_compras_service.dart';
 import 'auth_controller.dart';
 
-// Singleton: a lista de compras e' compartilhada entre Home, Detalhes
-// e a propria TelaListaCompras. Recarrega ao logar/sair.
 class ListaComprasController extends ChangeNotifier {
   static final ListaComprasController instance = ListaComprasController._();
 
@@ -45,7 +43,6 @@ class ListaComprasController extends ChangeNotifier {
 
   Future<void> recarregar() => _carregar();
 
-  // adiciona ingredientes das receitas e recarrega para refletir o estado real
   Future<void> adicionarReceitas(List<Receita> receitas) async {
     final usuario = AuthController.instance.usuario;
     if (usuario == null || receitas.isEmpty) return;
@@ -55,7 +52,6 @@ class ListaComprasController extends ChangeNotifier {
 
   Future<void> alternarComprado(ItemListaCompras item) async {
     final novoEstado = !item.comprado;
-    // atualiza local primeiro pra UI responder na hora
     item.comprado = novoEstado;
     notifyListeners();
     await _service.marcarComprado(item.id, novoEstado);

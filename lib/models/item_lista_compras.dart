@@ -1,8 +1,6 @@
-// modelo de um item da lista de compras — espelha lista_compras_itens
 class ItemListaCompras {
   final int id;
   final String nome;
-  // varias quantidades acumuladas (ex.: ['200g', '1 xicara']) — sem conversao
   final List<String> quantidades;
   bool comprado;
 
@@ -13,7 +11,6 @@ class ItemListaCompras {
     this.comprado = false,
   });
 
-  // texto pronto pra exibir do lado do nome (juntando as varias quantidades)
   String get quantidadeFormatada => quantidades.join(' + ');
 
   factory ItemListaCompras.fromMap(Map<String, dynamic> m) {

@@ -3,8 +3,6 @@ import '../models/receita.dart';
 import '../services/favorito_service.dart';
 import 'auth_controller.dart';
 
-// Singleton: a lista de favoritas e' compartilhada entre Home, Favoritos
-// e Detalhes. Recarrega sozinho quando o usuario entra ou sai.
 class FavoritoController extends ChangeNotifier {
   static final FavoritoController instance = FavoritoController._();
 
@@ -23,7 +21,6 @@ class FavoritoController extends ChangeNotifier {
 
   bool ehFavorita(int receitaId) => _receitas.any((r) => r.id == receitaId);
 
-  // alias do plano: ids das receitas favoritadas
   Set<int> get idsFavoritos => _receitas.map((r) => r.id).toSet();
 
   void _onAuthMudou() {

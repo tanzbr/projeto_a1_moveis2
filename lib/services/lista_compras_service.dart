@@ -2,14 +2,10 @@ import '../models/item_lista_compras.dart';
 import '../models/receita.dart';
 import 'supabase_service.dart';
 
-// Persistencia da lista de compras do usuario logado.
-// Como cada usuario tem uma unica lista (unique index), o id e' "lazy":
-// criado na primeira escrita e reaproveitado nas demais.
 class ListaComprasService {
   static const String _tabelaListas = 'listas_compras';
   static const String _tabelaItens = 'lista_compras_itens';
 
-  // Cria a lista do usuario se ainda nao existe; devolve o id em qualquer caso.
   Future<int> _obterOuCriarListaId(String usuarioId) async {
     final existente = await SupabaseService.client
         .from(_tabelaListas)
@@ -47,9 +43,6 @@ class ListaComprasService {
     return rows.map((m) => ItemListaCompras.fromMap(m)).toList();
   }
 
-  // Pega receitas e junta os ingredientes na lista do usuario.
-  // Itens com mesmo nome (case-insensitive) sao agrupados; quantidades
-  // novas viram entradas adicionais no array textual.
   Future<void> gerarListaPorReceitas(
     String usuarioId,
     List<Receita> receitas,
@@ -57,7 +50,6 @@ class ListaComprasService {
     if (receitas.isEmpty) return;
     final listaId = await _obterOuCriarListaId(usuarioId);
 
-    // Carrega itens atuais pra decidir entre INSERT e UPDATE
     final existentes = await listarItens(usuarioId);
     final porChave = <String, ItemListaCompras>{
       for (final item in existentes) item.nome.toLowerCase().trim(): item,
@@ -70,7 +62,6 @@ class ListaComprasService {
 
         final atual = porChave[chave];
         if (atual == null) {
-          // novo item: insere com a primeira quantidade
           final row = await SupabaseService.client
               .from(_tabelaItens)
               .insert({
@@ -82,13 +73,11 @@ class ListaComprasService {
               .single();
           porChave[chave] = ItemListaCompras.fromMap(row);
         } else if (!atual.quantidades.contains(ing.quantidade)) {
-          // ja existe: anexa quantidade se ainda nao estiver registrada
           final novas = [...atual.quantidades, ing.quantidade];
           await SupabaseService.client
               .from(_tabelaItens)
               .update({'quantidades': novas})
               .eq('id', atual.id);
-          // atualiza o cache em memoria para os proximos loops
           porChave[chave] = ItemListaCompras(
             id: atual.id,
             nome: atual.nome,
@@ -111,7 +100,6 @@ class ListaComprasService {
     await SupabaseService.client.from(_tabelaItens).delete().eq('id', itemId);
   }
 
-  // Esvazia a lista do usuario sem apagar a propria lista (o id segue valido).
   Future<void> limparLista(String usuarioId) async {
     final listaId = await _buscarListaId(usuarioId);
     if (listaId == null) return;

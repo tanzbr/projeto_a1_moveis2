@@ -23,7 +23,6 @@ class TelaMinhasReceitasState extends State<TelaMinhasReceitas> {
   void initState() {
     super.initState();
     _carregar();
-    // recarrega ao logar/sair (lista de receitas depende do usuario atual)
     _auth.addListener(_carregar);
   }
 
@@ -73,7 +72,6 @@ class TelaMinhasReceitasState extends State<TelaMinhasReceitas> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: const Text('Minhas Receitas')),
-      // heroTag unico evita colisao com o FAB da Home
       floatingActionButton: FloatingActionButton.extended(
         heroTag: 'fab_minhas_receitas_nova',
         onPressed: _novaReceita,
@@ -100,7 +98,6 @@ class TelaMinhasReceitasState extends State<TelaMinhasReceitas> {
                 receita: receita,
                 onTap: () => _abrirDetalhes(receita.id),
                 mostrarCategoria: true,
-                // chip rapido para diferenciar publica de privada
                 acaoDireita: Icon(
                   receita.publica ? Icons.public : Icons.lock_outline,
                   size: 20,
